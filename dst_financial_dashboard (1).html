@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DST Financial Scanner</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#07090e;--bg2:#0d1017;--bg3:#141820;
+  --border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.14);
+  --text:#e8edf5;--muted:#6b7a90;--dim:#9aa3b5;
+  --green:#2ed573;--amber:#ffd07a;--orange:#ff9040;--red:#ff4757;
+  --blue:#5dade2;--purple:#a78bfa;
+  --green-bg:rgba(46,213,115,0.07);--amber-bg:rgba(255,208,122,0.07);
+  --orange-bg:rgba(255,144,64,0.07);--red-bg:rgba(255,71,87,0.07);
+}
+body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;font-size:13px;line-height:1.6;min-height:100vh}
+
+/* NAV */
+nav{border-bottom:1px solid var(--border);padding:16px 32px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:rgba(7,9,14,0.92);backdrop-filter:blur(12px);z-index:100}
+.nav-brand{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:14px;letter-spacing:.05em}
+.nav-brand span{color:var(--green)}
+.nav-eq{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted)}
+.nav-eq b{color:var(--dim)}
+.nav-links{display:flex;gap:20px;font-size:12px;color:var(--muted)}
+
+/* LAYOUT */
+.container{max-width:1400px;margin:0 auto;padding:32px}
+.header{margin-bottom:32px}
+.header h1{font-size:26px;font-weight:600;letter-spacing:-.02em;margin-bottom:6px}
+.header p{color:var(--dim);font-size:13px;max-width:640px}
+
+/* SUMMARY PILLS */
+.summary-row{display:flex;gap:12px;margin-bottom:28px;flex-wrap:wrap}
+.pill{padding:10px 18px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);font-family:'IBM Plex Mono',monospace;font-size:12px;display:flex;flex-direction:column;gap:4px}
+.pill-val{font-size:20px;font-weight:600}
+.pill-label{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.06em}
+.pill.elastic{border-color:rgba(46,213,115,0.25);background:var(--green-bg)}.pill.elastic .pill-val{color:var(--green)}
+.pill.plastic{border-color:rgba(255,208,122,0.25);background:var(--amber-bg)}.pill.plastic .pill-val{color:var(--amber)}
+.pill.late{border-color:rgba(255,144,64,0.25);background:var(--orange-bg)}.pill.late .pill-val{color:var(--orange)}
+.pill.residual{border-color:rgba(255,71,87,0.25);background:var(--red-bg)}.pill.residual .pill-val{color:var(--red)}
+
+/* FILTERS */
+.filters{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;align-items:center}
+.filter-btn{padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--muted);font-size:11px;font-family:'IBM Plex Mono',monospace;cursor:pointer;transition:all .15s}
+.filter-btn:hover,.filter-btn.active{border-color:var(--blue);color:var(--blue);background:rgba(93,173,226,.08)}
+.search{padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:12px;font-family:'IBM Plex Mono',monospace;width:180px}
+.search:focus{outline:none;border-color:var(--blue)}
+
+/* TABLE */
+.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:10px}
+table{width:100%;border-collapse:collapse}
+th{padding:10px 16px;text-align:left;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);background:var(--bg3);white-space:nowrap}
+td{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.04);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,0.02)}
+
+.ticker-col{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:13px}
+.name-col{color:var(--dim);font-size:12px}
+
+/* THETA BAR */
+.theta-wrap{display:flex;align-items:center;gap:10px;min-width:160px}
+.theta-num{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:14px;min-width:32px}
+.theta-bar{height:6px;border-radius:3px;flex:1;background:rgba(255,255,255,0.08);overflow:hidden}
+.theta-fill{height:100%;border-radius:3px;transition:width .6s ease}
+
+/* REGIME CHIP */
+.regime-chip{padding:3px 10px;border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;white-space:nowrap}
+.chip-elastic{background:var(--green-bg);color:var(--green);border:1px solid rgba(46,213,115,.2)}
+.chip-plastic{background:var(--amber-bg);color:var(--amber);border:1px solid rgba(255,208,122,.2)}
+.chip-late{background:var(--orange-bg);color:var(--orange);border:1px solid rgba(255,144,64,.2)}
+.chip-residual{background:var(--red-bg);color:var(--red);border:1px solid rgba(255,71,87,.2)}
+
+/* GAP */
+.gap-badge{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600}
+.gap-critical{color:var(--red)}.gap-high{color:var(--orange)}.gap-medium{color:var(--amber)}.gap-low{color:var(--green)}
+
+/* SIGMA / RHO / KAPPA */
+.vectors{display:flex;gap:8px}
+.vec{font-family:'IBM Plex Mono',monospace;font-size:10px;padding:2px 6px;border-radius:3px}
+.vec-s{background:rgba(255,71,87,.1);color:var(--red)}
+.vec-r{background:rgba(46,213,115,.1);color:var(--green)}
+.vec-k{background:rgba(255,208,122,.1);color:var(--amber)}
+
+/* TRAJECTORY */
+.traj{font-family:'IBM Plex Mono',monospace;font-size:11px}
+.traj-up{color:var(--green)}.traj-dn{color:var(--red)}.traj-st{color:var(--muted)}
+
+/* DETAIL PANEL */
+.detail{display:none;padding:16px;background:var(--bg3);border-top:1px solid var(--border)}
+.detail.open{display:block}
+.findings-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;margin-top:12px}
+.finding{padding:10px 12px;border-radius:6px;background:var(--bg2);border:1px solid var(--border)}
+.finding-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.finding-type{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600}
+.finding-impact{font-family:'IBM Plex Mono',monospace;font-size:11px}
+.finding-msg{color:var(--dim);font-size:11px;line-height:1.5}
+
+/* SORT ARROWS */
+th.sortable{cursor:pointer;user-select:none}
+th.sortable:hover{color:var(--text)}
+th.sort-asc::after{content:' ↑'}
+th.sort-desc::after{content:' ↓'}
+
+/* FOOTER */
+footer{border-top:1px solid var(--border);padding:16px 32px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);display:flex;justify-content:space-between;margin-top:48px}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">DST/<span>Scanner</span></div>
+  <div class="nav-eq"><b>dΘ/dt</b> = ρ − (σ − κ) &nbsp;·&nbsp; <b>ρ</b> heals &nbsp;·&nbsp; <b>κ</b> hides &nbsp;·&nbsp; <b>σ</b> kills</div>
+  <div class="nav-links"><span>SSRN 6434119</span><span>Idan Rephiah · 2026</span></div>
+</nav>
+
+<div class="container">
+  <div class="header">
+    <h1>DST Financial Scanner</h1>
+    <p>Structural health of corporate balance sheets through the Declining Stress Threshold lens. Θ measures real remaining capacity — not price, not earnings, not momentum.</p>
+  </div>
+
+  <div class="summary-row" id="summaryRow"></div>
+
+  <div class="filters">
+    <button class="filter-btn active" onclick="filterRegime('all',this)">All</button>
+    <button class="filter-btn" onclick="filterRegime('Elastic',this)">🟢 Elastic</button>
+    <button class="filter-btn" onclick="filterRegime('Plastic',this)">🟡 Plastic</button>
+    <button class="filter-btn" onclick="filterRegime('Late Plastic',this)">🟠 Late Plastic</button>
+    <button class="filter-btn" onclick="filterRegime('Residual',this)">🔴 Residual</button>
+    <input class="search" type="text" placeholder="Search ticker / name..." oninput="filterSearch(this.value)">
+  </div>
+
+  <div class="table-wrap">
+    <table id="mainTable">
+      <thead>
+        <tr>
+          <th class="sortable" onclick="sortBy('ticker')">Ticker</th>
+          <th>Name</th>
+          <th>Sector</th>
+          <th class="sortable" onclick="sortBy('theta')">Θ (Real Capacity)</th>
+          <th class="sortable" onclick="sortBy('regime')">Regime</th>
+          <th class="sortable" onclick="sortBy('obs_gap')">Obs. Gap</th>
+          <th>σ / ρ / κ</th>
+          <th class="sortable" onclick="sortBy('theta_trajectory')">dΘ/dt</th>
+          <th>MktCap</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<footer>
+  <span>DST Financial Scanner · dΘ/dt = ρ − (σ − κ) · SSRN 6434119 · Idan Rephiah · 2026</span>
+  <span>Demo data — run dst_scanner.py for live data</span>
+</footer>
+
+<script>
+// ── DEMO DATA (replace with output from dst_scanner.py) ────────────────────
+const DATA = [
+  {ticker:"NVDA",name:"NVIDIA Corp",sector:"Technology",price:875,market_cap:2150e9,theta:82,regime:"Elastic",apparent:78,obs_gap:0,sigma_score:8,rho_score:42,kappa_score:4,sigma_eff_note:"contained — ρ absorbing load",theta_trajectory:"↑ +3.2 pts/scan",findings:[
+    {metric:"current_ratio",value:4.17,impact:15,category:"rho",message:"Current ratio=4.17 — strong liquidity buffer. Elastic zone."},
+    {metric:"fcf_yield",value:0.031,impact:7,category:"rho",message:"FCF yield=3.1% — positive. Cash generation healthy."},
+    {metric:"leverage",value:0.4,impact:5,category:"sigma",message:"Debt/EBITDA=0.4x — elastic. Low leverage stress."},
+    {metric:"accruals_ratio",value:0.01,impact:4,category:"rho",message:"Accruals ratio=1% — high earnings quality. ρ signal."},
+  ]},
+  {ticker:"AAPL",name:"Apple Inc",sector:"Technology",price:185,market_cap:2900e9,theta:76,regime:"Elastic",apparent:72,obs_gap:4,sigma_score:12,rho_score:38,kappa_score:6,sigma_eff_note:"contained — ρ absorbing load",theta_trajectory:"→ stable",findings:[
+    {metric:"current_ratio",value:0.99,impact:-15,category:"sigma",message:"Current ratio=0.99 — BELOW 1.0. Liquidity suffocation. Residual signal."},
+    {metric:"fcf_yield",value:0.038,impact:7,category:"rho",message:"FCF yield=3.8% — positive. Cash generation healthy."},
+    {metric:"leverage",value:1.2,impact:-4,category:"sigma",message:"Debt/EBITDA=1.2x — manageable."},
+    {metric:"margin_trend",value:0.018,impact:4,category:"rho",message:"Gross margin improved 1.8% YoY — structural healing."},
+  ]},
+  {ticker:"MSFT",name:"Microsoft Corp",sector:"Technology",price:412,market_cap:3060e9,theta:88,regime:"Elastic",apparent:85,obs_gap:3,sigma_score:6,rho_score:48,kappa_score:3,sigma_eff_note:"contained — ρ absorbing load",theta_trajectory:"↑ +1.8 pts/scan",findings:[
+    {metric:"fcf_yield",value:0.028,impact:7,category:"rho",message:"FCF yield=2.8% — positive."},
+    {metric:"leverage",value:0.8,impact:5,category:"sigma",message:"Debt/EBITDA=0.8x — elastic."},
+    {metric:"current_ratio",value:1.77,impact:8,category:"rho",message:"Current ratio=1.77 — healthy."},
+  ]},
+  {ticker:"T",name:"AT&T Inc",sector:"Communication",price:16,market_cap:115e9,theta:28,regime:"Late Plastic",apparent:55,obs_gap:27,sigma_score:48,rho_score:8,kappa_score:22,sigma_eff_note:"elevated — κ near exhaustion",theta_trajectory:"↓ -2.1 pts/scan",findings:[
+    {metric:"leverage",value:7.8,impact:-25,category:"sigma",message:"Debt/EBITDA=7.8x — critical. System under terminal leverage stress."},
+    {metric:"interest_burden",value:0.52,impact:-22,category:"sigma",message:"Interest/OpIncome=52% — >60% of earnings burn on interest."},
+    {metric:"debt_growth",value:0.08,impact:-2,category:"sigma",message:"Debt flat YoY — σ stable."},
+    {metric:"current_ratio",value:0.62,impact:-15,category:"sigma",message:"Current ratio=0.62 — BELOW 1.0. Liquidity suffocation."},
+    {metric:"accruals_ratio",value:0.09,impact:-12,category:"kappa",message:"Accruals ratio=9% — earnings quality low. κ: reported income masked."},
+    {metric:"fcf_yield",value:0.11,impact:14,category:"rho",message:"FCF yield=11% — high. Generates real capital despite debt load."},
+  ]},
+  {ticker:"VZ",name:"Verizon Communications",sector:"Communication",price:38,market_cap:160e9,theta:31,regime:"Late Plastic",apparent:58,obs_gap:27,sigma_score:44,rho_score:12,kappa_score:18,sigma_eff_note:"elevated — κ near exhaustion",theta_trajectory:"↓ -1.8 pts/scan",findings:[
+    {metric:"leverage",value:6.9,impact:-18,category:"sigma",message:"Debt/EBITDA=6.9x — late plastic. κ running out."},
+    {metric:"interest_burden",value:0.41,impact:-15,category:"sigma",message:"Interest/OpIncome=41% — rate environment crushing structure."},
+    {metric:"current_ratio",value:0.54,impact:-15,category:"sigma",message:"Current ratio=0.54 — BELOW 1.0. Liquidity suffocation."},
+    {metric:"fcf_yield",value:0.09,impact:14,category:"rho",message:"FCF yield=9% — high. Real capital generation."},
+  ]},
+  {ticker:"WBD",name:"Warner Bros Discovery",sector:"Communication",price:8,market_cap:19e9,theta:12,regime:"Residual",apparent:44,obs_gap:32,sigma_score:62,rho_score:6,kappa_score:28,sigma_eff_note:"critical — σ dominant",theta_trajectory:"↓ -4.2 pts/scan",findings:[
+    {metric:"leverage",value:11.2,impact:-25,category:"sigma",message:"Debt/EBITDA=11.2x — critical. System under terminal leverage stress."},
+    {metric:"interest_burden",value:0.74,impact:-22,category:"sigma",message:"Interest/OpIncome=74% — >60% of earnings burn on interest. Residual."},
+    {metric:"goodwill_ratio",value:0.61,impact:-12,category:"kappa",message:"Goodwill=61% of assets — κ_a. Write-down risk masks real book value."},
+    {metric:"accruals_ratio",value:0.12,impact:-12,category:"kappa",message:"Accruals ratio=12% — earnings quality low. κ: reported income masked."},
+    {metric:"current_ratio",value:0.41,impact:-15,category:"sigma",message:"Current ratio=0.41 — BELOW 1.0. Liquidity suffocation. Residual signal."},
+    {metric:"fcf_vs_net",value:0.31,impact:-10,category:"kappa",message:"FCF/NetIncome=0.3x — earnings not converting to cash. Classic κ_a."},
+  ]},
+  {ticker:"MPW",name:"Medical Properties Trust",sector:"Real Estate",price:4,market_cap:2.4e9,theta:8,regime:"Residual",apparent:35,obs_gap:27,sigma_score:68,rho_score:3,kappa_score:32,sigma_eff_note:"critical — σ dominant",theta_trajectory:"↓ -5.1 pts/scan",findings:[
+    {metric:"leverage",value:14.8,impact:-25,category:"sigma",message:"Debt/EBITDA=14.8x — critical. System under terminal leverage stress."},
+    {metric:"interest_burden",value:0.91,impact:-22,category:"sigma",message:"Interest/OpIncome=91% — >60% of earnings burn on interest. Residual."},
+    {metric:"goodwill_ratio",value:0.52,impact:-12,category:"kappa",message:"Goodwill=52% of assets — κ_a. Write-down risk."},
+    {metric:"current_ratio",value:0.28,impact:-15,category:"sigma",message:"Current ratio=0.28 — BELOW 1.0. Critical liquidity suffocation."},
+    {metric:"debt_growth",value:0.34,impact:-14,category:"sigma",message:"Debt grew 34% YoY — σ accumulating faster than capacity."},
+    {metric:"fcf_yield",value:-0.08,impact:-8,category:"sigma",message:"FCF yield=-8% — NEGATIVE. Burning cash. σ amplifier."},
+  ]},
+  {ticker:"INTC",name:"Intel Corp",sector:"Technology",price:19,market_cap:82e9,theta:38,regime:"Late Plastic",apparent:60,obs_gap:22,sigma_score:38,rho_score:10,kappa_score:20,sigma_eff_note:"elevated — κ near exhaustion",theta_trajectory:"↓ -3.4 pts/scan",findings:[
+    {metric:"margin_trend",value:-0.08,impact:-10,category:"sigma",message:"Gross margin collapsed 8% YoY — σ amplifying through margins."},
+    {metric:"fcf_yield",value:-0.04,impact:-8,category:"sigma",message:"FCF yield=-4% — NEGATIVE. Burning cash."},
+    {metric:"leverage",value:3.8,impact:-10,category:"sigma",message:"Debt/EBITDA=3.8x — plastic. Monitoring required."},
+    {metric:"goodwill_ratio",value:0.31,impact:-6,category:"kappa",message:"Goodwill=31% of assets — elevated."},
+    {metric:"accruals_ratio",value:0.06,impact:-5,category:"kappa",message:"Accruals ratio=6% — moderate. FCF vs net income diverging."},
+  ]},
+  {ticker:"F",name:"Ford Motor Co",sector:"Consumer Cyclical",price:11,market_cap:44e9,theta:44,regime:"Late Plastic",apparent:62,obs_gap:18,sigma_score:34,rho_score:14,kappa_score:18,sigma_eff_note:"elevated — κ near exhaustion",theta_trajectory:"↓ -1.2 pts/scan",findings:[
+    {metric:"leverage",value:5.1,impact:-10,category:"sigma",message:"Debt/EBITDA=5.1x — plastic. Monitoring required."},
+    {metric:"interest_burden",value:0.32,impact:-8,category:"sigma",message:"Interest/OpIncome=32% — elevated. Financing pain rising."},
+    {metric:"current_ratio",value:1.2,impact:2,category:"rho",message:"Current ratio=1.2 — adequate. Minimal buffer."},
+    {metric:"debt_growth",value:0.12,impact:-7,category:"sigma",message:"Debt grew 12% YoY — loading increasing."},
+  ]},
+  {ticker:"JPM",name:"JPMorgan Chase",sector:"Financial",price:196,market_cap:565e9,theta:68,regime:"Plastic",apparent:70,obs_gap:2,sigma_score:18,rho_score:32,kappa_score:10,sigma_eff_note:"partially masked — κ active",theta_trajectory:"→ stable",findings:[
+    {metric:"fcf_yield",value:0.06,impact:12,category:"rho",message:"FCF yield=6% — positive. Cash generation healthy."},
+    {metric:"leverage",value:2.1,impact:-4,category:"sigma",message:"Debt/EBITDA=2.1x — manageable."},
+    {metric:"current_ratio",value:1.1,impact:2,category:"rho",message:"Current ratio=1.1 — adequate."},
+  ]},
+  {ticker:"OXY",name:"Occidental Petroleum",sector:"Energy",price:48,market_cap:45e9,theta:52,regime:"Plastic",apparent:65,obs_gap:13,sigma_score:28,rho_score:22,kappa_score:12,sigma_eff_note:"partially masked — κ active",theta_trajectory:"↑ +0.8 pts/scan",findings:[
+    {metric:"leverage",value:4.2,impact:-10,category:"sigma",message:"Debt/EBITDA=4.2x — plastic. Monitoring required."},
+    {metric:"fcf_yield",value:0.09,impact:14,category:"rho",message:"FCF yield=9% — high. Real capital generation."},
+    {metric:"interest_burden",value:0.22,impact:3,category:"sigma",message:"Interest/OpIncome=22% — contained."},
+  ]},
+  {ticker:"TSLA",name:"Tesla Inc",sector:"Consumer Cyclical",price:170,market_cap:540e9,theta:57,regime:"Plastic",apparent:65,obs_gap:8,sigma_score:22,rho_score:26,kappa_score:14,sigma_eff_note:"partially masked — κ active",theta_trajectory:"↓ -1.9 pts/scan",findings:[
+    {metric:"margin_trend",value:-0.06,impact:-10,category:"sigma",message:"Gross margin collapsed 6% YoY — σ amplifying through margins."},
+    {metric:"fcf_yield",value:0.02,impact:2,category:"rho",message:"FCF yield=2% — minimal positive FCF."},
+    {metric:"current_ratio",value:1.73,impact:8,category:"rho",message:"Current ratio=1.73 — healthy."},
+    {metric:"leverage",value:0.5,impact:5,category:"sigma",message:"Debt/EBITDA=0.5x — elastic. Low leverage stress."},
+  ]},
+];
+
+// ── STATE ──────────────────────────────────────────────────────────────────
+let filtered = [...DATA];
+let activeRegime = 'all';
+let searchQuery = '';
+let sortKey = 'theta';
+let sortDir = 'asc';
+
+// ── HELPERS ────────────────────────────────────────────────────────────────
+function regimeColor(r){
+  if(r==='Elastic') return 'var(--green)';
+  if(r==='Plastic') return 'var(--amber)';
+  if(r==='Late Plastic') return 'var(--orange)';
+  return 'var(--red)';
+}
+function thetaColor(t){
+  if(t>=75) return 'var(--green)';
+  if(t>=50) return 'var(--amber)';
+  if(t>=25) return 'var(--orange)';
+  return 'var(--red)';
+}
+function chipClass(r){
+  if(r==='Elastic') return 'chip-elastic';
+  if(r==='Plastic') return 'chip-plastic';
+  if(r==='Late Plastic') return 'chip-late';
+  return 'chip-residual';
+}
+function fmtCap(v){
+  if(!v) return '—';
+  if(v>=1e12) return `$${(v/1e12).toFixed(1)}T`;
+  if(v>=1e9)  return `$${(v/1e9).toFixed(0)}B`;
+  return `$${(v/1e6).toFixed(0)}M`;
+}
+function gapClass(g,sev){
+  if(g>=30||sev==='critical') return 'gap-critical';
+  if(g>=20||sev==='high')     return 'gap-high';
+  if(g>=10||sev==='medium')   return 'gap-medium';
+  return 'gap-low';
+}
+function trajClass(t){
+  if(t&&t.startsWith('↑')) return 'traj-up';
+  if(t&&t.startsWith('↓')) return 'traj-dn';
+  return 'traj-st';
+}
+
+// ── SUMMARY PILLS ─────────────────────────────────────────────────────────
+function renderSummary(){
+  const counts = {Elastic:0,Plastic:0,'Late Plastic':0,Residual:0};
+  DATA.forEach(d=>counts[d.regime]=(counts[d.regime]||0)+1);
+  const avg = Math.round(DATA.reduce((s,d)=>s+d.theta,0)/DATA.length);
+  const worstGap = Math.max(...DATA.map(d=>d.obs_gap));
+  document.getElementById('summaryRow').innerHTML = `
+    <div class="pill"><span class="pill-val">${DATA.length}</span><span class="pill-label">Companies</span></div>
+    <div class="pill"><span class="pill-val" style="color:var(--blue)">${avg}</span><span class="pill-label">Avg Θ</span></div>
+    <div class="pill elastic"><span class="pill-val">${counts.Elastic}</span><span class="pill-label">Elastic 🟢</span></div>
+    <div class="pill plastic"><span class="pill-val">${counts.Plastic}</span><span class="pill-label">Plastic 🟡</span></div>
+    <div class="pill late"><span class="pill-val">${counts['Late Plastic']}</span><span class="pill-label">Late Plastic 🟠</span></div>
+    <div class="pill residual"><span class="pill-val">${counts.Residual}</span><span class="pill-label">Residual 🔴</span></div>
+    <div class="pill"><span class="pill-val" style="color:var(--red)">${worstGap}</span><span class="pill-label">Max Obs. Gap</span></div>
+  `;
+}
+
+// ── RENDER TABLE ──────────────────────────────────────────────────────────
+function renderTable(){
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+  filtered.forEach((d,i)=>{
+    const color = thetaColor(d.theta);
+    const pct   = d.theta;
+    const gClass = gapClass(d.obs_gap,'');
+    const tClass = trajClass(d.theta_trajectory);
+
+    // Main row
+    const tr = document.createElement('tr');
+    tr.style.cursor = 'pointer';
+    tr.onclick = ()=>toggleDetail(i);
+    tr.innerHTML = `
+      <td class="ticker-col" style="color:${color}">${d.ticker}</td>
+      <td class="name-col">${d.name}</td>
+      <td><span style="font-size:11px;color:var(--muted)">${d.sector}</span></td>
+      <td>
+        <div class="theta-wrap">
+          <span class="theta-num" style="color:${color}">${d.theta}</span>
+          <div class="theta-bar"><div class="theta-fill" style="width:${pct}%;background:${color}"></div></div>
+        </div>
+      </td>
+      <td><span class="regime-chip ${chipClass(d.regime)}">${d.regime}</span></td>
+      <td><span class="gap-badge ${gClass}">${d.obs_gap > 0 ? '+'+d.obs_gap+' ⚠' : '✓ minimal'}</span></td>
+      <td>
+        <div class="vectors">
+          <span class="vec vec-s">σ ${d.sigma_score}</span>
+          <span class="vec vec-r">ρ ${d.rho_score}</span>
+          <span class="vec vec-k">κ ${d.kappa_score}</span>
+        </div>
+      </td>
+      <td><span class="traj ${tClass}">${d.theta_trajectory||'first scan'}</span></td>
+      <td style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted)">${fmtCap(d.market_cap)}</td>
+      <td style="color:var(--muted);font-size:11px">▾</td>
+    `;
+    tbody.appendChild(tr);
+
+    // Detail row
+    const detail = document.createElement('tr');
+    detail.innerHTML = `<td colspan="10" style="padding:0">
+      <div class="detail" id="detail-${i}">
+        <div style="margin-bottom:8px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted)">
+          σ_eff: ${d.sigma_eff_note} &nbsp;·&nbsp; Apparent: ${d.apparent}/100 &nbsp;·&nbsp; Gap: ${d.obs_gap} pts
+        </div>
+        <div class="findings-grid">
+          ${d.findings.map(f=>{
+            const cat = {sigma:'σ',kappa:'κ',rho:'ρ'}[f.category]||'?';
+            const cc  = {sigma:'var(--red)',kappa:'var(--amber)',rho:'var(--green)'}[f.category];
+            const sign = f.impact>0?'+':'';
+            return `<div class="finding">
+              <div class="finding-head">
+                <span class="finding-type" style="color:${cc}">${cat} ${f.metric.replace(/_/g,' ')}</span>
+                <span class="finding-impact" style="color:${f.impact>0?'var(--green)':'var(--red)'}">${sign}${f.impact}</span>
+              </div>
+              <div class="finding-msg">${f.message}</div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+    </td>`;
+    tbody.appendChild(detail);
+  });
+}
+
+function toggleDetail(i){
+  const el = document.getElementById(`detail-${i}`);
+  if(el) el.classList.toggle('open');
+}
+
+// ── FILTERS ───────────────────────────────────────────────────────────────
+function filterRegime(regime, btn){
+  activeRegime = regime;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  applyFilters();
+}
+function filterSearch(q){
+  searchQuery = q.toLowerCase();
+  applyFilters();
+}
+function applyFilters(){
+  filtered = DATA.filter(d=>{
+    if(activeRegime!=='all'&&d.regime!==activeRegime) return false;
+    if(searchQuery&&!d.ticker.toLowerCase().includes(searchQuery)&&!d.name.toLowerCase().includes(searchQuery)) return false;
+    return true;
+  });
+  sortData();
+  renderTable();
+}
+
+// ── SORT ──────────────────────────────────────────────────────────────────
+function sortBy(key){
+  if(sortKey===key) sortDir = sortDir==='asc'?'desc':'asc';
+  else{ sortKey=key; sortDir='asc'; }
+  document.querySelectorAll('th.sortable').forEach(th=>{th.classList.remove('sort-asc','sort-desc');});
+  const activeH = document.querySelector(`th[onclick="sortBy('${key}')"]`);
+  if(activeH) activeH.classList.add(sortDir==='asc'?'sort-asc':'sort-desc');
+  sortData();
+  renderTable();
+}
+function sortData(){
+  filtered.sort((a,b)=>{
+    let va=a[sortKey], vb=b[sortKey];
+    if(typeof va==='string') return sortDir==='asc'?va.localeCompare(vb):vb.localeCompare(va);
+    return sortDir==='asc'?(va-vb):(vb-va);
+  });
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+renderSummary();
+sortData();
+renderTable();
+</script>
+</body>
+</html>

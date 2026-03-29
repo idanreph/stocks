@@ -1,0 +1,576 @@
+"""
+DST Financial Scanner — v1.0
+Declining Stress Threshold applied to corporate balance sheets.
+
+dΘ/dt = ρ − (σ − κ)
+ρ heals · κ hides · σ kills
+
+SSRN 6434119 · Idan Rephiah · 2026
+"""
+
+import yfinance as yf
+import pandas as pd
+import numpy as np
+import json
+import os
+from datetime import datetime
+
+# ── CONFIG ────────────────────────────────────────────────────────────────────
+WATCHLIST_FILE = "dst_watchlist.json"
+RESULTS_FILE   = "dst_results.csv"
+HISTORY_FILE   = "dst_history.json"
+
+# ── DST WEIGHTS (calibrated to corporate balance sheet physics) ───────────────
+W = {
+    # σ — stress amplifiers (kill Θ)
+    "leverage":        {"weight": -18, "cat": "sigma",  "threshold_bad": 6.0,  "threshold_warn": 3.5},
+    "interest_burden": {"weight": -22, "cat": "sigma",  "threshold_bad": 0.5,  "threshold_warn": 0.3},
+    "debt_growth":     {"weight": -12, "cat": "sigma",  "threshold_bad": 0.25, "threshold_warn": 0.10},
+    # κ — masking patterns (hide real state)
+    "goodwill_ratio":  {"weight": -8,  "cat": "kappa",  "threshold_bad": 0.4,  "threshold_warn": 0.2},
+    "accruals_ratio":  {"weight": -10, "cat": "kappa",  "threshold_bad": 0.08, "threshold_warn": 0.03},
+    "fcf_vs_net":      {"weight": -9,  "cat": "kappa",  "threshold_bad": -0.3, "threshold_warn": 0.0},
+    # ρ — healing signals (raise Θ)
+    "current_ratio":   {"weight": +15, "cat": "rho",    "threshold_good": 2.0, "threshold_ok": 1.0},
+    "fcf_yield":       {"weight": +12, "cat": "rho",    "threshold_good": 0.08,"threshold_ok": 0.03},
+    "roe":             {"weight": +8,  "cat": "rho",    "threshold_good": 0.15,"threshold_ok": 0.08},
+    "margin_trend":    {"weight": +10, "cat": "rho",    "threshold_good": 0.02,"threshold_ok": 0.0},
+}
+
+
+# ── DATA FETCHER ──────────────────────────────────────────────────────────────
+def fetch_financials(ticker: str) -> dict:
+    """Pull raw financials from Yahoo Finance and normalize to DST inputs."""
+    try:
+        stock = yf.Ticker(ticker)
+        bs    = stock.balance_sheet
+        fi    = stock.financials
+        cf    = stock.cashflow
+        info  = stock.info
+
+        def safe_get(df, *keys):
+            for k in keys:
+                try:
+                    vals = df.loc[k]
+                    v = vals.iloc[0]
+                    if pd.notna(v):
+                        return float(v)
+                except:
+                    pass
+            return None
+
+        # Core extraction — multiple key aliases for robustness
+        ebitda       = safe_get(fi, 'EBITDA', 'Ebitda')
+        total_debt   = safe_get(bs, 'Total Debt', 'TotalDebt', 'Long Term Debt And Capital Lease Obligation')
+        interest_exp = safe_get(fi, 'Interest Expense', 'InterestExpense')
+        op_income    = safe_get(fi, 'Operating Income', 'OperatingIncome')
+        net_income   = safe_get(fi, 'Net Income', 'NetIncome')
+        curr_assets  = safe_get(bs, 'Current Assets', 'TotalCurrentAssets')
+        curr_liab    = safe_get(bs, 'Current Liabilities', 'TotalCurrentLiabilities')
+        total_assets = safe_get(bs, 'Total Assets', 'TotalAssets')
+        goodwill     = safe_get(bs, 'Goodwill', 'GoodwillAndIntangibleAssets') or 0
+        fcf          = safe_get(cf, 'Free Cash Flow', 'FreeCashFlow')
+        revenue      = safe_get(fi, 'Total Revenue', 'TotalRevenue')
+
+        # Year-over-year debt growth
+        try:
+            debt_cols = bs.loc['Total Debt'] if 'Total Debt' in bs.index else bs.loc['TotalDebt']
+            debt_now  = float(debt_cols.iloc[0]) if len(debt_cols) > 0 else None
+            debt_prev = float(debt_cols.iloc[1]) if len(debt_cols) > 1 else None
+            debt_growth = (debt_now - debt_prev) / abs(debt_prev) if debt_prev and debt_prev != 0 else None
+        except:
+            debt_growth = None
+
+        # Margin trend (latest vs prior year)
+        try:
+            margins = fi.loc['Gross Profit'] / fi.loc['Total Revenue']
+            margin_trend = float(margins.iloc[0]) - float(margins.iloc[1]) if len(margins) > 1 else None
+        except:
+            margin_trend = None
+
+        # Accruals ratio (earnings quality)
+        accruals_ratio = None
+        if net_income and fcf and revenue:
+            accruals_ratio = (net_income - fcf) / abs(revenue) if revenue != 0 else None
+
+        market_cap = info.get('marketCap')
+        price      = info.get('currentPrice') or info.get('regularMarketPrice')
+        sector     = info.get('sector', 'Unknown')
+        name       = info.get('shortName', ticker)
+
+        return {
+            "ticker":       ticker.upper(),
+            "name":         name,
+            "sector":       sector,
+            "price":        price,
+            "market_cap":   market_cap,
+            "ebitda":       ebitda,
+            "total_debt":   total_debt,
+            "interest_exp": abs(interest_exp) if interest_exp else None,
+            "op_income":    op_income,
+            "net_income":   net_income,
+            "curr_assets":  curr_assets,
+            "curr_liab":    curr_liab,
+            "total_assets": total_assets,
+            "goodwill":     goodwill,
+            "fcf":          fcf,
+            "revenue":      revenue,
+            "debt_growth":  debt_growth,
+            "margin_trend": margin_trend,
+            "accruals_ratio": accruals_ratio,
+            "fetched_at":   datetime.now().isoformat(),
+        }
+    except Exception as e:
+        return {"ticker": ticker.upper(), "error": str(e)}
+
+
+# ── DST SCORE ENGINE ──────────────────────────────────────────────────────────
+def calculate_dst_score(data: dict) -> dict:
+    """
+    Core DST equation applied to corporate financials:
+    dΘ/dt = ρ − (σ − κ)
+    
+    Returns Θ (0-100), regime, findings, observability gap.
+    """
+    if "error" in data:
+        return {"theta": None, "regime": "NO DATA", "error": data["error"]}
+
+    d = data
+    findings = []
+    score    = 50.0  # Start at Plastic midpoint — corporates start under pressure
+    sigma_score = 0
+    rho_score   = 0
+    kappa_score = 0
+
+    def add(name, value, impact, category, message):
+        nonlocal score, sigma_score, rho_score, kappa_score
+        if value is None:
+            return
+        score += impact
+        if category == "sigma":
+            sigma_score += abs(impact) if impact < 0 else 0
+        elif category == "rho":
+            rho_score += impact if impact > 0 else 0
+        elif category == "kappa":
+            kappa_score += abs(impact) if impact < 0 else 0
+        findings.append({
+            "metric": name,
+            "value": round(value, 4),
+            "impact": round(impact, 1),
+            "category": category,
+            "message": message
+        })
+
+    # ── σ AMPLIFIERS ──────────────────────────────────────────────────────────
+
+    # Leverage (Debt/EBITDA) — the killer
+    if d["total_debt"] and d["ebitda"] and d["ebitda"] > 0:
+        lev = d["total_debt"] / d["ebitda"]
+        if lev > 8:
+            impact = -25
+            msg = f"Debt/EBITDA={lev:.1f}x — critical. System under terminal leverage stress."
+        elif lev > 6:
+            impact = -18
+            msg = f"Debt/EBITDA={lev:.1f}x — late plastic. κ running out."
+        elif lev > 4:
+            impact = -10
+            msg = f"Debt/EBITDA={lev:.1f}x — plastic. Monitoring required."
+        elif lev > 2:
+            impact = -4
+            msg = f"Debt/EBITDA={lev:.1f}x — manageable."
+        else:
+            impact = +5
+            msg = f"Debt/EBITDA={lev:.1f}x — elastic. Low leverage stress."
+        add("leverage", lev, impact, "sigma", msg)
+
+    # Interest burden (Interest/Operating Income) — real-time rate pain
+    if d["interest_exp"] and d["op_income"] and d["op_income"] > 0:
+        burden = d["interest_exp"] / d["op_income"]
+        if burden > 0.6:
+            impact = -22
+            msg = f"Interest/OpIncome={burden:.0%} — >60% of earnings burn on interest. Residual."
+        elif burden > 0.4:
+            impact = -15
+            msg = f"Interest/OpIncome={burden:.0%} — rate environment is crushing this structure."
+        elif burden > 0.25:
+            impact = -8
+            msg = f"Interest/OpIncome={burden:.0%} — elevated. Financing pain rising."
+        else:
+            impact = +3
+            msg = f"Interest/OpIncome={burden:.0%} — contained. Low financing stress."
+        add("interest_burden", burden, impact, "sigma", msg)
+
+    # Debt growth YoY — acceleration of structural loading
+    if d["debt_growth"] is not None:
+        dg = d["debt_growth"]
+        if dg > 0.3:
+            add("debt_growth", dg, -14, "sigma",
+                f"Debt grew {dg:.0%} YoY — σ accumulating faster than capacity.")
+        elif dg > 0.15:
+            add("debt_growth", dg, -7, "sigma",
+                f"Debt grew {dg:.0%} YoY — loading increasing.")
+        elif dg < -0.1:
+            add("debt_growth", dg, +6, "rho",
+                f"Debt reduced {abs(dg):.0%} YoY — genuine ρ. Capacity rebuilding.")
+        else:
+            add("debt_growth", dg, -2, "sigma",
+                f"Debt flat YoY — σ stable.")
+
+    # ── κ MASKING PATTERNS ────────────────────────────────────────────────────
+
+    # Goodwill ratio — hidden fragility on balance sheet
+    if d["goodwill"] and d["total_assets"]:
+        gr = d["goodwill"] / d["total_assets"]
+        if gr > 0.45:
+            add("goodwill_ratio", gr, -12, "kappa",
+                f"Goodwill={gr:.0%} of assets — κ_a. Write-down risk masks real book value.")
+        elif gr > 0.25:
+            add("goodwill_ratio", gr, -6, "kappa",
+                f"Goodwill={gr:.0%} of assets — elevated. Watch acquisition integration.")
+        else:
+            add("goodwill_ratio", gr, 0, "kappa",
+                f"Goodwill={gr:.0%} of assets — within normal range.")
+
+    # Earnings quality (accruals) — is income real or paper?
+    if d["accruals_ratio"] is not None:
+        ar = d["accruals_ratio"]
+        if ar > 0.08:
+            add("accruals_ratio", ar, -12, "kappa",
+                f"Accruals ratio={ar:.2%} — earnings quality low. κ: reported income masked by accruals.")
+        elif ar > 0.03:
+            add("accruals_ratio", ar, -5, "kappa",
+                f"Accruals ratio={ar:.2%} — moderate. FCF vs net income diverging.")
+        else:
+            add("accruals_ratio", ar, +4, "rho",
+                f"Accruals ratio={ar:.2%} — high earnings quality. ρ signal.")
+
+    # FCF vs Net Income — the realest κ detector
+    if d["fcf"] and d["net_income"] and d["net_income"] != 0:
+        ratio = d["fcf"] / abs(d["net_income"])
+        if ratio < 0.5:
+            add("fcf_vs_net", ratio, -10, "kappa",
+                f"FCF/NetIncome={ratio:.1f}x — earnings not converting to cash. Classic κ_a.")
+        elif ratio > 1.2:
+            add("fcf_vs_net", ratio, +8, "rho",
+                f"FCF/NetIncome={ratio:.1f}x — cash generation exceeds reported earnings. ρ signal.")
+        else:
+            add("fcf_vs_net", ratio, 0, "kappa",
+                f"FCF/NetIncome={ratio:.1f}x — in-line.")
+
+    # ── ρ HEALING SIGNALS ─────────────────────────────────────────────────────
+
+    # Current ratio — liquidity oxygen
+    if d["curr_assets"] and d["curr_liab"] and d["curr_liab"] > 0:
+        cr = d["curr_assets"] / d["curr_liab"]
+        if cr > 2.5:
+            add("current_ratio", cr, +15, "rho",
+                f"Current ratio={cr:.2f} — strong liquidity buffer. Elastic zone.")
+        elif cr > 1.5:
+            add("current_ratio", cr, +8, "rho",
+                f"Current ratio={cr:.2f} — healthy. Room to absorb near-term stress.")
+        elif cr > 1.0:
+            add("current_ratio", cr, +2, "rho",
+                f"Current ratio={cr:.2f} — adequate. Minimal buffer.")
+        else:
+            add("current_ratio", cr, -15, "sigma",
+                f"Current ratio={cr:.2f} — BELOW 1.0. Liquidity suffocation. Residual signal.")
+
+    # FCF yield — real capital generation
+    if d["fcf"] and d["market_cap"] and d["market_cap"] > 0:
+        fcfy = d["fcf"] / d["market_cap"]
+        if fcfy > 0.08:
+            add("fcf_yield", fcfy, +14, "rho",
+                f"FCF yield={fcfy:.1%} — high. Company generates real structural capital.")
+        elif fcfy > 0.04:
+            add("fcf_yield", fcfy, +7, "rho",
+                f"FCF yield={fcfy:.1%} — positive. Cash generation healthy.")
+        elif fcfy > 0:
+            add("fcf_yield", fcfy, +2, "rho",
+                f"FCF yield={fcfy:.1%} — minimal positive FCF.")
+        else:
+            add("fcf_yield", fcfy, -8, "sigma",
+                f"FCF yield={fcfy:.1%} — NEGATIVE. Burning cash. σ amplifier.")
+
+    # Margin trend — structural improvement or decay?
+    if d["margin_trend"] is not None:
+        mt = d["margin_trend"]
+        if mt > 0.03:
+            add("margin_trend", mt, +12, "rho",
+                f"Gross margin improved {mt:.1%} YoY — structural healing (ρ).")
+        elif mt > 0:
+            add("margin_trend", mt, +4, "rho",
+                f"Gross margin up {mt:.1%} — marginal improvement.")
+        elif mt > -0.02:
+            add("margin_trend", mt, -3, "kappa",
+                f"Gross margin down {abs(mt):.1%} — κ_a pressure building.")
+        else:
+            add("margin_trend", mt, -10, "sigma",
+                f"Gross margin collapsed {abs(mt):.1%} — σ amplifying through margins.")
+
+    # ── SCORE CLAMPING + REGIME ───────────────────────────────────────────────
+    theta = max(0, min(100, round(score)))
+
+    if theta >= 75:
+        regime = "Elastic"
+        regime_desc = "Genuinely healthy. Structure absorbs stress."
+        regime_emoji = "🟢"
+    elif theta >= 50:
+        regime = "Plastic"
+        regime_desc = "Functioning via masking. Capacity declining."
+        regime_emoji = "🟡"
+    elif theta >= 25:
+        regime = "Late Plastic"
+        regime_desc = "κ near saturation. Each shock costs more."
+        regime_emoji = "🟠"
+    else:
+        regime = "Residual"
+        regime_desc = "Delayed failure embedded. κ exhausted."
+        regime_emoji = "🔴"
+
+    # ── OBSERVABILITY GAP ─────────────────────────────────────────────────────
+    # Apparent health = what naive P/E-based analysis sees
+    # (market cap relative to earnings, ignoring structural stress)
+    apparent = min(100, max(0, round(50 + rho_score - (sigma_score * 0.2))))
+    obs_gap  = max(0, apparent - theta)
+    obs_severity = "critical" if obs_gap >= 30 else "high" if obs_gap >= 20 else "medium" if obs_gap >= 10 else "low"
+
+    # ── σ_eff ─────────────────────────────────────────────────────────────────
+    sigma_eff_note = (
+        "contained — ρ absorbing load" if theta >= 75 else
+        "partially masked — κ active" if theta >= 50 else
+        "elevated — κ near exhaustion" if theta >= 25 else
+        "critical — σ dominant"
+    )
+
+    # Annual cost estimate (heuristic)
+    annual_cost = None
+    if d["interest_exp"] and d["ebitda"]:
+        burden_pct = d["interest_exp"] / d["ebitda"] if d["ebitda"] > 0 else 0
+        if burden_pct > 0.3:
+            annual_cost = f"${d['interest_exp']/1e9:.1f}B interest annually"
+
+    return {
+        "ticker":       data["ticker"],
+        "name":         data.get("name", data["ticker"]),
+        "sector":       data.get("sector", "Unknown"),
+        "price":        data.get("price"),
+        "market_cap":   data.get("market_cap"),
+        "theta":        theta,
+        "regime":       regime,
+        "regime_desc":  regime_desc,
+        "regime_emoji": regime_emoji,
+        "apparent":     apparent,
+        "obs_gap":      obs_gap,
+        "obs_severity": obs_severity,
+        "sigma_score":  round(sigma_score, 1),
+        "rho_score":    round(rho_score, 1),
+        "kappa_score":  round(kappa_score, 1),
+        "sigma_eff_note": sigma_eff_note,
+        "annual_cost":  annual_cost,
+        "findings":     findings,
+        "scanned_at":   datetime.now().isoformat(),
+    }
+
+
+# ── WATCHLIST MANAGER ─────────────────────────────────────────────────────────
+def load_watchlist() -> list:
+    if os.path.exists(WATCHLIST_FILE):
+        with open(WATCHLIST_FILE) as f:
+            return json.load(f)
+    # Default watchlist — a mix of sectors, some known stressed
+    return [
+        "NVDA", "AAPL", "MSFT", "TSLA", "META",       # Big tech
+        "MPW",  "NYCB", "WBD",  "AMC",  "BBBY",       # Stressed / zombie
+        "XOM",  "CVX",  "BAC",  "JPM",  "GS",         # Energy / Finance
+        "F",    "GM",   "INTC", "T",    "VZ",          # Legacy / high debt
+    ]
+
+def save_watchlist(tickers: list):
+    with open(WATCHLIST_FILE, "w") as f:
+        json.dump(tickers, f, indent=2)
+    print(f"Watchlist saved: {len(tickers)} tickers")
+
+
+# ── HISTORY / TREND ───────────────────────────────────────────────────────────
+def update_history(results: list):
+    history = {}
+    if os.path.exists(HISTORY_FILE):
+        with open(HISTORY_FILE) as f:
+            history = json.load(f)
+    ts = datetime.now().isoformat()
+    for r in results:
+        if r.get("theta") is None:
+            continue
+        ticker = r["ticker"]
+        if ticker not in history:
+            history[ticker] = []
+        history[ticker].append({"ts": ts, "theta": r["theta"], "regime": r["regime"]})
+        history[ticker] = history[ticker][-20:]  # keep last 20
+    with open(HISTORY_FILE, "w") as f:
+        json.dump(history, f, indent=2)
+
+def get_trajectory(ticker: str) -> str:
+    """dΘ/dt — is capacity improving or declining?"""
+    if not os.path.exists(HISTORY_FILE):
+        return "first scan"
+    with open(HISTORY_FILE) as f:
+        history = json.load(f)
+    if ticker not in history or len(history[ticker]) < 2:
+        return "first scan"
+    recent = history[ticker][-3:]
+    thetas = [e["theta"] for e in recent]
+    avg_delta = (thetas[-1] - thetas[0]) / (len(thetas) - 1)
+    if avg_delta > 1:   return f"↑ +{avg_delta:.1f} pts/scan (improving)"
+    if avg_delta < -1:  return f"↓ {avg_delta:.1f} pts/scan (declining)"
+    return "→ stable"
+
+
+# ── CONSOLE OUTPUT ────────────────────────────────────────────────────────────
+def print_result(r: dict):
+    if r.get("theta") is None:
+        print(f"  {r['ticker']:6s} ❌ {r.get('error','no data')[:60]}")
+        return
+
+    bar = "█" * (r["theta"] // 10) + "░" * (10 - r["theta"] // 10)
+    mc = f"${r['market_cap']/1e9:.1f}B" if r.get("market_cap") else "—"
+    traj = get_trajectory(r["ticker"])
+
+    print(f"\n  {r['regime_emoji']} {r['ticker']:6s}  {r['name'][:30]}")
+    print(f"     Θ = {r['theta']:3d}/100  [{bar}]  {r['regime']}")
+    print(f"     Apparent: {r['apparent']}/100  │  Gap: {r['obs_gap']} pts [{r['obs_severity']}]")
+    print(f"     σ: {r['sigma_score']:.0f}  ρ: {r['rho_score']:.0f}  κ: {r['kappa_score']:.0f}  │  {r['sigma_eff_note']}")
+    print(f"     dΘ/dt: {traj}  │  MktCap: {mc}")
+    print(f"     ─ {r['regime_desc']}")
+
+    # Top 3 findings
+    top = sorted(r["findings"], key=lambda x: x["impact"])[:3]
+    for f in top:
+        cat = {"sigma":"σ","kappa":"κ","rho":"ρ"}.get(f["category"],"?")
+        sign = "+" if f["impact"] > 0 else ""
+        print(f"       {cat} [{sign}{f['impact']:+.0f}] {f['message'][:70]}")
+
+    if r.get("annual_cost"):
+        print(f"       💰 {r['annual_cost']}")
+
+
+# ── EXPORT ────────────────────────────────────────────────────────────────────
+def export_csv(results: list):
+    rows = []
+    for r in results:
+        if r.get("theta") is None:
+            continue
+        rows.append({
+            "ticker":      r["ticker"],
+            "name":        r["name"],
+            "sector":      r["sector"],
+            "theta":       r["theta"],
+            "regime":      r["regime"],
+            "apparent":    r["apparent"],
+            "obs_gap":     r["obs_gap"],
+            "sigma":       r["sigma_score"],
+            "rho":         r["rho_score"],
+            "kappa":       r["kappa_score"],
+            "price":       r.get("price"),
+            "market_cap":  r.get("market_cap"),
+            "scanned_at":  r["scanned_at"],
+        })
+    df = pd.DataFrame(rows).sort_values("theta")
+    df.to_csv(RESULTS_FILE, index=False)
+    print(f"\n  Results saved → {RESULTS_FILE}")
+    return df
+
+
+# ── MAIN ──────────────────────────────────────────────────────────────────────
+def run_scan(tickers=None, verbose=True):
+    if tickers is None:
+        tickers = load_watchlist()
+
+    print("\n══════════════════════════════════════════════════════")
+    print("  DST FINANCIAL SCANNER v1.0")
+    print("  dΘ/dt = ρ − (σ − κ)  ·  ρ heals · κ hides · σ kills")
+    print("  SSRN 6434119 · Idan Rephiah · 2026")
+    print("══════════════════════════════════════════════════════\n")
+
+    results = []
+    for ticker in tickers:
+        if verbose:
+            print(f"  Scanning {ticker}...", end="\r")
+        data   = fetch_financials(ticker)
+        result = calculate_dst_score(data)
+        results.append(result)
+        if verbose:
+            print_result(result)
+
+    # Summary table
+    valid = [r for r in results if r.get("theta") is not None]
+    valid.sort(key=lambda x: x["theta"])
+
+    print("\n\n══════════════════════════════════════════════════════")
+    print("  DST RANKING — WORST TO BEST")
+    print("══════════════════════════════════════════════════════")
+    print(f"  {'Ticker':<8} {'Θ':>5}  {'Regime':<14} {'Gap':>5}  Name")
+    print("  " + "─" * 60)
+    for r in valid:
+        mc = f"${r['market_cap']/1e9:.0f}B" if r.get("market_cap") else "  —  "
+        print(f"  {r['regime_emoji']}{r['ticker']:<7} {r['theta']:>4}  {r['regime']:<14} {r['obs_gap']:>4}  {r['name'][:28]}")
+
+    # Regime distribution
+    regimes = {}
+    for r in valid:
+        regimes[r["regime"]] = regimes.get(r["regime"], 0) + 1
+    print(f"\n  Regimes: ", end="")
+    for reg, count in regimes.items():
+        print(f"{reg}: {count}  ", end="")
+    print()
+
+    # Save
+    update_history(results)
+    df = export_csv(results)
+
+    print("\n  ρ heals · κ hides · σ kills")
+    print("══════════════════════════════════════════════════════\n")
+
+    return results, df
+
+
+def scan_single(ticker: str):
+    """Quick scan of a single ticker."""
+    data   = fetch_financials(ticker)
+    result = calculate_dst_score(data)
+    print_result(result)
+    return result
+
+
+def scan_sp500_zombies(top_n=20):
+    """Scan S&P 500 and surface the most distressed names."""
+    # Common S&P 500 high-debt / stressed sectors
+    candidates = [
+        # Telecom (high debt)
+        "T", "VZ", "DISH", "LUMN",
+        # Media / Entertainment
+        "WBD", "PARA", "FOXA",
+        # Real Estate / REIT stress
+        "MPW", "IRM", "VICI",
+        # Auto
+        "F", "GM", "RIVN", "LCID",
+        # Legacy tech
+        "INTC", "QCOM", "HPQ",
+        # Healthcare leveraged
+        "HCA", "THC", "CYH",
+        # Retail stressed
+        "M", "KSS", "BBY",
+        # Energy
+        "OXY", "HAL", "DVN",
+    ]
+    print(f"  Scanning {len(candidates)} zombie candidates...")
+    return run_scan(candidates)
+
+
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) > 1:
+        tickers = [t.upper() for t in sys.argv[1:]]
+        run_scan(tickers)
+    else:
+        # Default: scan the watchlist
+        run_scan()

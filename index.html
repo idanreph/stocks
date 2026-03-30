@@ -3,418 +3,1240 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DST Financial Scanner</title>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<title>DST Financial Scanner — Structural Diagnosis for Public Companies</title>
+<meta name="description" content="A deterministic structural diagnostic engine for public companies. DST framework — ρ heals · κ hides · σ kills. Type any ticker, get a full structural diagnosis.">
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#07090e;--bg2:#0d1017;--bg3:#141820;
-  --border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.14);
-  --text:#e8edf5;--muted:#6b7a90;--dim:#9aa3b5;
-  --green:#2ed573;--amber:#ffd07a;--orange:#ff9040;--red:#ff4757;
-  --blue:#5dade2;--purple:#a78bfa;
-  --green-bg:rgba(46,213,115,0.07);--amber-bg:rgba(255,208,122,0.07);
-  --orange-bg:rgba(255,144,64,0.07);--red-bg:rgba(255,71,87,0.07);
+/* ─── RESET & BASE ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --black:    #1a1a18;
+  --text:     #2c2c2a;
+  --muted:    #5f5e5a;
+  --hint:     #888780;
+  --border:   #d3d1c7;
+  --bg:       #faf9f5;
+  --bg2:      #f1efe8;
+  --bg3:      #e8e6de;
+  --white:    #ffffff;
+  --s-bg:     #fcebeb; --s-tc: #a32d2d;
+  --ka-bg:    #faeeda; --ka-tc: #854f0b;
+  --kc-bg:    #e6f1fb; --kc-tc: #185fa5;
+  --ki-bg:    #eeedfe; --ki-tc: #534ab7;
+  --r-bg:     #eaf3de; --r-tc:  #3b6d11;
+  --el-bg:    #eaf3de; --el-tc: #3b6d11;
+  --pl-bg:    #e6f1fb; --pl-tc: #185fa5;
+  --lp-bg:    #faeeda; --lp-tc: #854f0b;
+  --re-bg:    #fcebeb; --re-tc: #a32d2d;
 }
-body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;font-size:13px;line-height:1.6;min-height:100vh}
+html { font-size: 16px; scroll-behavior: smooth; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, sans-serif;
+       background: var(--bg); color: var(--text); line-height: 1.5; }
+a { color: inherit; text-decoration: none; }
 
-/* NAV */
-nav{border-bottom:1px solid var(--border);padding:16px 32px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:rgba(7,9,14,0.92);backdrop-filter:blur(12px);z-index:100}
-.nav-brand{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:14px;letter-spacing:.05em}
-.nav-brand span{color:var(--green)}
-.nav-eq{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted)}
-.nav-eq b{color:var(--dim)}
-.nav-links{display:flex;gap:20px;font-size:12px;color:var(--muted)}
+/* ─── NAV ──────────────────────────────────────────────────── */
+nav {
+  background: var(--black); color: #faf9f5;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0 32px; height: 48px; position: sticky; top: 0; z-index: 100;
+  border-bottom: 1px solid #333330;
+}
+.nav-brand { font-size: 13px; font-weight: 700; letter-spacing: .04em; color: #faf9f5; }
+.nav-brand span { color: var(--r-tc); }
+.nav-links { display: flex; gap: 24px; align-items: center; }
+.nav-links a { font-size: 12px; color: #b4b2a9; font-weight: 500; transition: color .15s; }
+.nav-links a:hover { color: #faf9f5; }
+.nav-tag { font-size: 10px; color: #5f5e5a; font-family: monospace; margin-left: 8px; }
 
-/* LAYOUT */
-.container{max-width:1400px;margin:0 auto;padding:32px}
-.header{margin-bottom:32px}
-.header h1{font-size:26px;font-weight:600;letter-spacing:-.02em;margin-bottom:6px}
-.header p{color:var(--dim);font-size:13px;max-width:640px}
+/* ─── HERO ──────────────────────────────────────────────────── */
+.hero {
+  max-width: 860px; margin: 0 auto;
+  padding: 72px 24px 60px;
+  border-bottom: 1px solid var(--border);
+}
+.hero-label {
+  font-size: 11px; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--hint); margin-bottom: 16px;
+}
+.hero h1 {
+  font-size: clamp(28px, 4vw, 44px); font-weight: 700;
+  line-height: 1.15; color: var(--black); margin-bottom: 20px;
+}
+.hero h1 em { font-style: italic; color: var(--muted); }
+.hero-sub {
+  font-size: 16px; color: var(--muted); max-width: 600px;
+  line-height: 1.65; margin-bottom: 32px;
+}
+.hero-model {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  margin-bottom: 32px;
+}
+.model-card {
+  padding: 12px 14px; border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.model-card .var {
+  font-size: 20px; font-weight: 700; font-family: monospace;
+  margin-bottom: 2px;
+}
+.model-card .var-name { font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; margin-bottom: 4px; }
+.model-card .var-desc { font-size: 12px; line-height: 1.4; }
+.mc-theta  { background: var(--kc-bg); border-color: #b8d4f0; }
+.mc-theta  .var, .mc-theta  .var-name { color: var(--kc-tc); }
+.mc-sigma  { background: var(--s-bg);  border-color: #f09595; }
+.mc-sigma  .var, .mc-sigma  .var-name { color: var(--s-tc); }
+.mc-kappa  { background: var(--ka-bg); border-color: #f5c885; }
+.mc-kappa  .var, .mc-kappa  .var-name { color: var(--ka-tc); }
+.mc-rho    { background: var(--r-bg);  border-color: #9ccc65; }
+.mc-rho    .var, .mc-rho    .var-name { color: var(--r-tc); }
 
-/* SUMMARY PILLS */
-.summary-row{display:flex;gap:12px;margin-bottom:28px;flex-wrap:wrap}
-.pill{padding:10px 18px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);font-family:'IBM Plex Mono',monospace;font-size:12px;display:flex;flex-direction:column;gap:4px}
-.pill-val{font-size:20px;font-weight:600}
-.pill-label{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.06em}
-.pill.elastic{border-color:rgba(46,213,115,0.25);background:var(--green-bg)}.pill.elastic .pill-val{color:var(--green)}
-.pill.plastic{border-color:rgba(255,208,122,0.25);background:var(--amber-bg)}.pill.plastic .pill-val{color:var(--amber)}
-.pill.late{border-color:rgba(255,144,64,0.25);background:var(--orange-bg)}.pill.late .pill-val{color:var(--orange)}
-.pill.residual{border-color:rgba(255,71,87,0.25);background:var(--red-bg)}.pill.residual .pill-val{color:var(--red)}
+.hero-equation {
+  font-family: monospace; font-size: 13px; color: var(--muted);
+  background: var(--bg2); padding: 10px 16px; border-radius: 6px;
+  display: inline-block;
+}
+.hero-equation strong { color: var(--black); }
 
-/* FILTERS */
-.filters{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;align-items:center}
-.filter-btn{padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--muted);font-size:11px;font-family:'IBM Plex Mono',monospace;cursor:pointer;transition:all .15s}
-.filter-btn:hover,.filter-btn.active{border-color:var(--blue);color:var(--blue);background:rgba(93,173,226,.08)}
-.search{padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:12px;font-family:'IBM Plex Mono',monospace;width:180px}
-.search:focus{outline:none;border-color:var(--blue)}
+/* ─── WHAT THIS IS ─────────────────────────────────────────── */
+.what-section {
+  max-width: 860px; margin: 0 auto;
+  padding: 48px 24px 40px;
+  border-bottom: 1px solid var(--border);
+}
+.what-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px;
+  margin-top: 24px;
+}
+.what-card {
+  padding: 16px 18px;
+  background: var(--bg2); border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.what-card .wc-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--hint); margin-bottom: 6px;
+}
+.what-card h3 { font-size: 14px; color: var(--black); margin-bottom: 6px; }
+.what-card p  { font-size: 12px; color: var(--muted); line-height: 1.55; }
+.what-arrow {
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; color: var(--hint); gap: 12px; margin-top: 24px;
+  padding: 10px; background: var(--bg2); border-radius: 6px;
+  font-family: monospace;
+}
+.what-arrow span { color: var(--black); font-weight: 700; }
 
-/* TABLE */
-.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:10px}
-table{width:100%;border-collapse:collapse}
-th{padding:10px 16px;text-align:left;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);background:var(--bg3);white-space:nowrap}
-td{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.04);vertical-align:middle}
-tr:last-child td{border-bottom:none}
-tr:hover td{background:rgba(255,255,255,0.02)}
+/* ─── KAPPA EXPLAINER ──────────────────────────────────────── */
+.kappa-section {
+  max-width: 860px; margin: 0 auto;
+  padding: 48px 24px 40px;
+  border-bottom: 1px solid var(--border);
+}
+.kappa-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;
+  margin-top: 24px;
+}
+.kappa-card {
+  padding: 14px 16px; border-radius: 8px;
+  border: 1px solid;
+}
+.kappa-card .kk-type  { font-size: 22px; font-weight: 700; font-family: monospace; margin-bottom: 2px; }
+.kappa-card .kk-rule  { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+.kappa-card .kk-title { font-size: 13px; font-weight: 700; margin-bottom: 5px; }
+.kappa-card .kk-desc  { font-size: 12px; line-height: 1.5; }
+.kk-a { background: var(--s-bg);  border-color: #f09595; }
+.kk-a .kk-type, .kk-a .kk-rule, .kk-a .kk-title { color: var(--s-tc); }
+.kk-a .kk-desc { color: #791f1f; }
+.kk-c { background: var(--ka-bg); border-color: #f5c885; }
+.kk-c .kk-type, .kk-c .kk-rule, .kk-c .kk-title { color: var(--ka-tc); }
+.kk-c .kk-desc { color: #633806; }
+.kk-i { background: var(--r-bg);  border-color: #9ccc65; }
+.kk-i .kk-type, .kk-i .kk-rule, .kk-i .kk-title { color: var(--r-tc); }
+.kk-i .kk-desc { color: #2e5409; }
 
-.ticker-col{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:13px}
-.name-col{color:var(--dim);font-size:12px}
+/* ─── SCANNER ──────────────────────────────────────────────── */
+.scanner-section {
+  max-width: 860px; margin: 0 auto;
+  padding: 48px 24px 80px;
+}
+.scanner-label {
+  font-size: 11px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--hint); margin-bottom: 8px;
+}
+.scanner-section h2 {
+  font-size: 26px; font-weight: 700; color: var(--black); margin-bottom: 8px;
+}
+.scanner-section .scanner-sub {
+  font-size: 13px; color: var(--muted); margin-bottom: 28px; line-height: 1.5;
+}
 
-/* THETA BAR */
-.theta-wrap{display:flex;align-items:center;gap:10px;min-width:160px}
-.theta-num{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:14px;min-width:32px}
-.theta-bar{height:6px;border-radius:3px;flex:1;background:rgba(255,255,255,0.08);overflow:hidden}
-.theta-fill{height:100%;border-radius:3px;transition:width .6s ease}
+.input-row {
+  display: flex; gap: 10px; margin-bottom: 12px;
+}
+#tickerInput {
+  flex: 1; padding: 14px 18px;
+  font-size: 18px; font-weight: 700; font-family: monospace; letter-spacing: .04em;
+  border: 2px solid var(--border); border-radius: 8px;
+  background: var(--white); color: var(--black); outline: none;
+  transition: border-color .15s;
+}
+#tickerInput:focus { border-color: var(--black); }
+#tickerInput::placeholder { color: var(--border); font-weight: 400; }
+#scanBtn {
+  padding: 14px 28px; font-size: 14px; font-weight: 700;
+  background: var(--black); color: var(--bg);
+  border: none; border-radius: 8px; cursor: pointer;
+  letter-spacing: .03em; transition: background .15s; white-space: nowrap;
+}
+#scanBtn:hover:not(:disabled) { background: #333330; }
+#scanBtn:disabled { background: var(--border); cursor: not-allowed; }
+.input-hint {
+  font-size: 11px; color: var(--hint); margin-bottom: 28px;
+}
 
-/* REGIME CHIP */
-.regime-chip{padding:3px 10px;border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;white-space:nowrap}
-.chip-elastic{background:var(--green-bg);color:var(--green);border:1px solid rgba(46,213,115,.2)}
-.chip-plastic{background:var(--amber-bg);color:var(--amber);border:1px solid rgba(255,208,122,.2)}
-.chip-late{background:var(--orange-bg);color:var(--orange);border:1px solid rgba(255,144,64,.2)}
-.chip-residual{background:var(--red-bg);color:var(--red);border:1px solid rgba(255,71,87,.2)}
+/* states */
+#errorBox {
+  display: none; padding: 12px 16px;
+  background: var(--s-bg); border-left: 3px solid var(--s-tc);
+  border-radius: 6px; color: var(--s-tc); font-size: 13px;
+  margin-bottom: 20px;
+}
+#loadingBox {
+  display: none; padding: 48px 0; text-align: center; color: var(--hint);
+}
+#loadingBox p { font-size: 13px; margin-bottom: 6px; }
+#loadingBox small { font-size: 11px; color: var(--border); }
+.spinner {
+  width: 28px; height: 28px; border: 2.5px solid var(--border);
+  border-top-color: var(--black); border-radius: 50%;
+  animation: spin .7s linear infinite; margin: 0 auto 14px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
-/* GAP */
-.gap-badge{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600}
-.gap-critical{color:var(--red)}.gap-high{color:var(--orange)}.gap-medium{color:var(--amber)}.gap-low{color:var(--green)}
+/* ─── RESULT SHELL ─────────────────────────────────────────── */
+#resultBox { display: none; }
 
-/* SIGMA / RHO / KAPPA */
-.vectors{display:flex;gap:8px}
-.vec{font-family:'IBM Plex Mono',monospace;font-size:10px;padding:2px 6px;border-radius:3px}
-.vec-s{background:rgba(255,71,87,.1);color:var(--red)}
-.vec-r{background:rgba(46,213,115,.1);color:var(--green)}
-.vec-k{background:rgba(255,208,122,.1);color:var(--amber)}
+.result-header {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  flex-wrap: wrap; gap: 10px; margin-bottom: 24px;
+}
+.result-ticker {
+  font-size: 28px; font-weight: 700; font-family: monospace;
+  letter-spacing: .05em; color: var(--black);
+}
+.result-company { font-size: 14px; color: var(--muted); margin-top: 2px; }
+.result-meta    { font-size: 11px; color: var(--hint); margin-top: 2px; }
+.verdict-pill {
+  padding: 6px 16px; border-radius: 20px;
+  font-size: 12px; font-weight: 700; border: 1.5px solid;
+  max-width: 240px; text-align: right;
+}
 
-/* TRAJECTORY */
-.traj{font-family:'IBM Plex Mono',monospace;font-size:11px}
-.traj-up{color:var(--green)}.traj-dn{color:var(--red)}.traj-st{color:var(--muted)}
+/* ─── TOP 3-COL ────────────────────────────────────────────── */
+.top-grid {
+  display: grid; grid-template-columns: 130px 1fr 1fr; gap: 16px;
+  margin-bottom: 24px; align-items: start;
+}
+/* gauge */
+.gauge-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.regime-pill {
+  font-size: 12px; font-weight: 700;
+  padding: 3px 14px; border-radius: 20px;
+}
+/* center col */
+.center-col { display: flex; flex-direction: column; gap: 10px; }
+.info-card {
+  padding: 10px 14px; background: var(--bg2);
+  border-radius: 8px; border: 1px solid var(--border);
+}
+.info-card-label {
+  font-size: 9px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--hint); margin-bottom: 7px;
+}
+.obs-gap-row { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.obs-num { font-size: 20px; font-weight: 700; font-family: monospace; }
+.obs-sub { font-size: 10px; color: var(--muted); margin-bottom: 2px; }
+.obs-arrow { font-size: 18px; color: var(--border); }
+.obs-gap-val { font-size: 16px; font-weight: 700; font-family: monospace; }
+.obs-gap-sev {
+  font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+}
+.traj-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.traj-period { text-align: center; }
+.traj-period .tp-label { font-size: 9px; color: var(--hint); }
+.traj-period .tp-val   { font-size: 16px; font-weight: 700; font-family: monospace; }
+.traj-dot { color: var(--border); font-size: 12px; }
+.traj-stat { text-align: center; }
+.traj-stat .ts-label { font-size: 9px; color: var(--hint); }
+.traj-stat .ts-val   { font-size: 14px; font-weight: 700; font-family: monospace; }
+/* right col */
+.vectors-card {
+  padding: 12px 14px; background: var(--bg2);
+  border-radius: 8px; border: 1px solid var(--border);
+}
+.vec-label-row {
+  font-size: 9px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--hint); margin-bottom: 10px;
+}
+.vec-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.vec-lbl { font-size: 11px; font-weight: 700; font-family: monospace; min-width: 68px; }
+.vec-bar-wrap { flex: 1; height: 8px; background: var(--bg3); border-radius: 4px; overflow: hidden; }
+.vec-bar { height: 100%; border-radius: 4px; transition: width .5s; }
+.vec-num { font-size: 13px; font-weight: 700; font-family: monospace; min-width: 24px; text-align: right; }
+.kappa-decomp { display: flex; gap: 8px; padding-top: 8px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+.kd-item { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; }
 
-/* DETAIL PANEL */
-.detail{display:none;padding:16px;background:var(--bg3);border-top:1px solid var(--border)}
-.detail.open{display:block}
-.findings-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;margin-top:12px}
-.finding{padding:10px 12px;border-radius:6px;background:var(--bg2);border:1px solid var(--border)}
-.finding-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
-.finding-type{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600}
-.finding-impact{font-family:'IBM Plex Mono',monospace;font-size:11px}
-.finding-msg{color:var(--dim);font-size:11px;line-height:1.5}
+/* ─── TABS ─────────────────────────────────────────────────── */
+.tabs {
+  display: flex; gap: 2px; border-bottom: 1px solid var(--border);
+  margin-bottom: 20px; flex-wrap: wrap;
+}
+.tab-btn {
+  padding: 8px 16px; font-size: 12px; font-weight: 600;
+  border: none; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  background: transparent; cursor: pointer; color: var(--hint);
+  transition: color .15s, border-color .15s;
+}
+.tab-btn.active { color: var(--black); border-bottom-color: var(--black); }
+.tab-btn:hover:not(.active) { color: var(--text); }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
 
-/* SORT ARROWS */
-th.sortable{cursor:pointer;user-select:none}
-th.sortable:hover{color:var(--text)}
-th.sort-asc::after{content:' ↑'}
-th.sort-desc::after{content:' ↓'}
+/* ─── OVERVIEW TAB ─────────────────────────────────────────── */
+.verdict-box {
+  padding: 14px 18px; border-radius: 8px; border-left: 3px solid;
+  margin-bottom: 20px;
+}
+.verdict-box .vb-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.verdict-box .vb-body  { font-size: 12px; opacity: .85; line-height: 1.55; }
+.verdict-box .vb-rule  { font-size: 11px; color: var(--muted); margin-top: 8px; padding-top: 8px; border-top: 1px solid; border-color: inherit; opacity: .4; }
+.findings-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--hint); margin-bottom: 8px;
+}
+.finding-row {
+  display: flex; gap: 10px; padding: 9px 12px;
+  border-radius: 6px; background: var(--bg2);
+  border: 1px solid var(--border); margin-bottom: 5px; align-items: flex-start;
+}
+.badge {
+  font-size: 10px; font-weight: 700; padding: 2px 8px;
+  border-radius: 4px; white-space: nowrap; flex-shrink: 0; margin-top: 1px;
+}
+.finding-content { flex: 1; }
+.finding-title  { font-size: 12px; font-weight: 600; color: var(--black); }
+.finding-detail { font-size: 11px; color: var(--muted); margin-top: 2px; line-height: 1.45; }
+.finding-score  { font-size: 12px; font-weight: 700; font-family: monospace; min-width: 28px; text-align: right; padding-top: 1px; }
+.regime-desc-box {
+  padding: 12px 16px; border-radius: 8px;
+  font-size: 12px; line-height: 1.6; margin-top: 12px; border: 1px solid;
+}
 
-/* FOOTER */
-footer{border-top:1px solid var(--border);padding:16px 32px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);display:flex;justify-content:space-between;margin-top:48px}
+/* ─── BLOCKS TAB ───────────────────────────────────────────── */
+.block-card {
+  border: 1px solid var(--border); border-radius: 8px;
+  overflow: hidden; margin-bottom: 6px;
+}
+.block-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 11px 16px; background: var(--bg2); cursor: pointer;
+  user-select: none;
+}
+.block-header-left { display: flex; gap: 10px; align-items: center; }
+.block-num  { font-size: 11px; font-weight: 700; color: var(--hint); font-family: monospace; }
+.block-name { font-size: 13px; font-weight: 700; color: var(--black); }
+.block-score { font-size: 15px; font-weight: 700; font-family: monospace; }
+.block-arrow { font-size: 11px; color: var(--hint); }
+.block-body { display: none; }
+.block-row {
+  display: grid; grid-template-columns: auto 80px 30px 1fr;
+  gap: 10px; padding: 8px 16px;
+  border-bottom: 1px solid var(--bg2); align-items: start;
+}
+.block-row:last-child { border: none; }
+.br-val   { font-size: 11px; font-family: monospace; color: var(--muted); padding-top: 1px; }
+.br-score { font-size: 11px; font-weight: 700; font-family: monospace; padding-top: 1px; }
+.br-content { }
+.br-title  { font-size: 12px; font-weight: 600; color: var(--black); }
+.br-detail { font-size: 11px; color: var(--muted); margin-top: 1px; line-height: 1.4; }
+.theta-eq {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 16px; background: var(--black); border-radius: 8px; margin-top: 2px;
+}
+.theta-eq-formula { font-family: monospace; font-size: 12px; color: #b4b2a9; }
+.theta-eq-val { font-size: 22px; font-weight: 700; font-family: monospace; }
+
+/* ─── FINDINGS TAB ─────────────────────────────────────────── */
+.finding-group { margin-bottom: 18px; }
+.finding-group-header {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; padding-bottom: 5px; margin-bottom: 6px;
+  border-bottom: 1px solid;
+}
+.finding-item {
+  display: flex; gap: 10px; padding: 8px 10px;
+  border-radius: 6px; margin-bottom: 4px; align-items: flex-start;
+}
+.fi-rule  { font-size: 10px; font-weight: 700; font-family: monospace; min-width: 64px; padding-top: 1px; }
+.fi-body  { flex: 1; }
+.fi-title  { font-size: 12px; font-weight: 600; color: var(--black); }
+.fi-detail { font-size: 11px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+.fi-score { font-size: 11px; font-weight: 700; font-family: monospace; min-width: 28px; text-align: right; }
+
+/* ─── TTF TAB ──────────────────────────────────────────────── */
+.ttf-mode-card {
+  padding: 10px 14px; border-radius: 8px; background: var(--bg2);
+  border: 1px solid var(--border); margin-bottom: 16px;
+  font-size: 12px; color: var(--muted); line-height: 1.6;
+}
+.ttf-threshold {
+  padding: 14px 16px; border-radius: 8px; background: var(--bg2);
+  border: 1px solid var(--border); margin-bottom: 10px;
+}
+.ttf-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.ttf-regime-name { font-size: 14px; font-weight: 700; }
+.ttf-right { text-align: right; }
+.ttf-gap-val { font-size: 18px; font-weight: 700; font-family: monospace; }
+.ttf-periods { font-size: 11px; color: var(--muted); }
+.ttf-bar-wrap { height: 8px; background: var(--bg3); border-radius: 4px; overflow: hidden; }
+.ttf-bar { height: 100%; border-radius: 4px; transition: width .5s; }
+.ttf-note {
+  margin-top: 14px; padding: 10px 12px; background: var(--bg2);
+  border-radius: 6px; font-size: 11px; color: var(--muted); line-height: 1.6;
+}
+
+/* ─── DELTA DISPLAY (demo.html style) ─────────────────────── */
+.delta-strip {
+  font-size: 12px; color: var(--muted); font-family: monospace;
+  padding: 8px 0 4px; border-top: 1px solid var(--border); margin-top: 4px;
+}
+.delta-strip strong { color: var(--black); }
+
+/* ─── FOOTER ───────────────────────────────────────────────── */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 24px 32px;
+  display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; gap: 10px;
+}
+footer .ft-left { font-size: 11px; color: var(--hint); }
+footer .ft-right { font-size: 11px; color: var(--hint); text-align: right; }
+footer a { color: var(--hint); text-decoration: underline; text-underline-offset: 3px; }
+footer a:hover { color: var(--text); }
+
+/* ─── RESPONSIVE ───────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .hero-model    { grid-template-columns: 1fr 1fr; }
+  .what-grid     { grid-template-columns: 1fr; }
+  .kappa-grid    { grid-template-columns: 1fr; }
+  .top-grid      { grid-template-columns: 1fr; }
+  .gauge-wrap    { flex-direction: row; align-items: center; gap: 16px; }
+  nav            { padding: 0 16px; }
+  .hero, .what-section, .kappa-section, .scanner-section { padding-left: 16px; padding-right: 16px; }
+}
 </style>
 </head>
 <body>
 
+<!-- ─── NAV ──────────────────────────────────────────────────── -->
 <nav>
-  <div class="nav-brand">DST/<span>Scanner</span></div>
-  <div class="nav-eq"><b>dΘ/dt</b> = ρ − (σ − κ) &nbsp;·&nbsp; <b>ρ</b> heals &nbsp;·&nbsp; <b>κ</b> hides &nbsp;·&nbsp; <b>σ</b> kills</div>
-  <div class="nav-links"><span>SSRN 6434119</span><span>Idan Rephiah · 2026</span></div>
+  <div class="nav-brand">DST <span>Financial</span> Scanner <span class="nav-tag">v1.0</span></div>
+  <div class="nav-links">
+    <a href="https://idanreph.github.io/dst--theory-/" target="_blank">Theory</a>
+    <a href="https://idanreph.github.io/dst-framework/demo.html" target="_blank">Code Scanner</a>
+    <a href="https://github.com/idanreph/dst-financial-scanner" target="_blank">GitHub</a>
+    <a href="https://ssrn.com/abstract=6434119" target="_blank">SSRN 6434119</a>
+  </div>
 </nav>
 
-<div class="container">
-  <div class="header">
-    <h1>DST Financial Scanner</h1>
-    <p>Structural health of corporate balance sheets through the Declining Stress Threshold lens. Θ measures real remaining capacity — not price, not earnings, not momentum.</p>
+<!-- ─── HERO ──────────────────────────────────────────────────── -->
+<section class="hero">
+  <div class="hero-label">Declining Stress Threshold · Applied to Public Companies</div>
+  <h1>Most companies don't fail<br>when they <em>break.</em><br>They fail while still <em>reporting.</em></h1>
+  <p class="hero-sub">
+    Traditional financial analysis asks: <em>does this work?</em><br>
+    DST asks: <strong>is this company getting stronger or weaker over time?</strong><br>
+    Type any public ticker. Get a deterministic structural diagnosis — not AI commentary.
+  </p>
+
+  <div class="hero-model">
+    <div class="model-card mc-theta">
+      <div class="var">Θ</div>
+      <div class="var-name">Theta</div>
+      <div class="var-desc">Real remaining structural capacity. What the cash flow statement actually proves.</div>
+    </div>
+    <div class="model-card mc-sigma">
+      <div class="var">σ</div>
+      <div class="var-name">Sigma</div>
+      <div class="var-desc">Stress that amplifies problems. Debt burden, weak FCF, margin collapse, dilution.</div>
+    </div>
+    <div class="model-card mc-kappa">
+      <div class="var">κ</div>
+      <div class="var-name">Kappa</div>
+      <div class="var-desc">Masking that hides damage. Earnings inflation, goodwill, accounting displacement.</div>
+    </div>
+    <div class="model-card mc-rho">
+      <div class="var">ρ</div>
+      <div class="var-name">Rho</div>
+      <div class="var-desc">Real healing. Strong FCF, margin expansion, debt paydown, share buybacks.</div>
+    </div>
   </div>
 
-  <div class="summary-row" id="summaryRow"></div>
+  <div class="hero-equation">
+    <strong>dΘ/dt = ρ − σ<sub>eff</sub></strong>
+    &nbsp;·&nbsp; ρ &gt; σ → system improves
+    &nbsp;·&nbsp; ρ &lt; σ → declining (even if still reporting profits)
+  </div>
+</section>
 
-  <div class="filters">
-    <button class="filter-btn active" onclick="filterRegime('all',this)">All</button>
-    <button class="filter-btn" onclick="filterRegime('Elastic',this)">🟢 Elastic</button>
-    <button class="filter-btn" onclick="filterRegime('Plastic',this)">🟡 Plastic</button>
-    <button class="filter-btn" onclick="filterRegime('Late Plastic',this)">🟠 Late Plastic</button>
-    <button class="filter-btn" onclick="filterRegime('Residual',this)">🔴 Residual</button>
-    <input class="search" type="text" placeholder="Search ticker / name..." oninput="filterSearch(this.value)">
+<!-- ─── WHAT THIS IS ──────────────────────────────────────────── -->
+<section class="what-section">
+  <h2 style="font-size:22px;font-weight:700;color:var(--black);margin-bottom:8px">What this scanner does differently</h2>
+  <p style="font-size:13px;color:var(--muted);max-width:600px;line-height:1.6">
+    Standard screeners give you ratios. This scanner gives you a structural state diagnosis.
+    Every number is computed from exact Yahoo Finance rows — deterministic, traceable, explainable.
+  </p>
+
+  <div class="what-grid">
+    <div class="what-card">
+      <div class="wc-label">Layer 1</div>
+      <h3>6-block scoring engine</h3>
+      <p>Revenue & margin quality, solvency, liquidity, earnings quality, cash engine, and capital allocation — each as a deterministic rule with exact thresholds.</p>
+    </div>
+    <div class="what-card">
+      <div class="wc-label">Layer 2</div>
+      <h3>DST vector mapping</h3>
+      <p>Every financial finding classified as σ (stress), κ_a / κ_c / κ_i (masking type), or ρ (healing). Not all masking is the same — three types, three interventions.</p>
+    </div>
+    <div class="what-card">
+      <div class="wc-label">Layer 3</div>
+      <h3>Trajectory + time-to-failure</h3>
+      <p>Θ computed across 4 periods. dΘ/dt shows direction. At current slope, how many periods until each regime threshold breaks — or how far away you are from it.</p>
+    </div>
   </div>
 
-  <div class="table-wrap">
-    <table id="mainTable">
-      <thead>
-        <tr>
-          <th class="sortable" onclick="sortBy('ticker')">Ticker</th>
-          <th>Name</th>
-          <th>Sector</th>
-          <th class="sortable" onclick="sortBy('theta')">Θ (Real Capacity)</th>
-          <th class="sortable" onclick="sortBy('regime')">Regime</th>
-          <th class="sortable" onclick="sortBy('obs_gap')">Obs. Gap</th>
-          <th>σ / ρ / κ</th>
-          <th class="sortable" onclick="sortBy('theta_trajectory')">dΘ/dt</th>
-          <th>MktCap</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody id="tbody"></tbody>
-    </table>
+  <div class="what-arrow">
+    <span>Income Statement tells a story</span>
+    <span>→</span>
+    Cash Flow + Balance Sheet <em>proves</em> or <em>contradicts</em> it
+    <span>→</span>
+    <span>A(t) vs Θ(t) = observability gap</span>
   </div>
-</div>
+</section>
 
+<!-- ─── KAPPA EXPLAINER ───────────────────────────────────────── -->
+<section class="kappa-section">
+  <h2 style="font-size:22px;font-weight:700;color:var(--black);margin-bottom:8px">κ is not scalar — it is a vector</h2>
+  <p style="font-size:13px;color:var(--muted);max-width:600px;line-height:1.6;margin-bottom:4px">
+    Not all masking is neglect. The scanner classifies every masking finding into one of three types.
+    The difference is whether it is structural, forced, or conscious.
+  </p>
+
+  <div class="kappa-grid">
+    <div class="kappa-card kk-a">
+      <div class="kk-type">κ_a</div>
+      <div class="kk-rule">Accumulated · FIX</div>
+      <div class="kk-title">Past choices built hidden fragility</div>
+      <div class="kk-desc">Goodwill buildup from acquisitions. Earnings consistently above cash flow. Years of dilution. AR growing faster than revenue. Grows with neglect. Penalized fully.</div>
+    </div>
+    <div class="kappa-card kk-c">
+      <div class="kk-type">κ_c</div>
+      <div class="kk-rule">Conscripted · MITIGATE</div>
+      <div class="kk-title">Domain or sector forces it</div>
+      <div class="kk-desc">Consumer brand negative working capital (collect before paying suppliers — Apple, Walmart). Commodity shock on margins. Rate regime repricing debt. Cannot be eliminated. Penalty capped at floor rate.</div>
+    </div>
+    <div class="kappa-card kk-i">
+      <div class="kk-type">κ_i</div>
+      <div class="kk-rule">Intentional · ACCEPT</div>
+      <div class="kk-title">Documented tradeoff with a rationale</div>
+      <div class="kk-desc">Low-rate debt funding high-ROIC buybacks. Intentional FCF burn during expansion. Restructuring charge to clear future costs. Accepted — but monitored. Becomes κ_a when the rationale expires.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── SCANNER ───────────────────────────────────────────────── -->
+<section class="scanner-section">
+  <div class="scanner-label">Run the scanner</div>
+  <h2>Type any public company ticker</h2>
+  <p class="scanner-sub">
+    The scanner extracts 4 years of financial data, runs the 6-block scoring engine,
+    maps to DST vectors, computes trajectory and time-to-failure.
+    All math — no AI narration.
+  </p>
+
+  <div class="input-row">
+    <input id="tickerInput" type="text" placeholder="AAPL" maxlength="10"
+           onkeydown="if(event.key==='Enter')runScan()"
+           oninput="this.value=this.value.toUpperCase()">
+    <button id="scanBtn" onclick="runScan()">Scan →</button>
+  </div>
+  <div class="input-hint">Try: AAPL · MSFT · TSLA · AMZN · NVDA · GOOGL · META · BRK.B</div>
+
+  <div id="errorBox"></div>
+
+  <div id="loadingBox">
+    <div class="spinner"></div>
+    <p>Extracting financials across 4 periods…</p>
+    <small>Running 6-block scoring · DST vector mapping · dΘ/dt trajectory</small>
+  </div>
+
+  <div id="resultBox">
+    <!-- filled by JS -->
+  </div>
+</section>
+
+<!-- ─── FOOTER ───────────────────────────────────────────────── -->
 <footer>
-  <span>DST Financial Scanner · dΘ/dt = ρ − (σ − κ) · SSRN 6434119 · Idan Rephiah · 2026</span>
-  <span>Demo data — run dst_scanner.py for live data</span>
+  <div class="ft-left">
+    DST Financial Scanner · v1.0 · Idan Rephiah · 2026<br>
+    Framework: <a href="https://ssrn.com/abstract=6434119" target="_blank">SSRN 6434119</a> ·
+    <a href="https://ssrn.com/abstract=6434258" target="_blank">SSRN 6434258</a> ·
+    <a href="https://idanreph.github.io/dst--theory-/" target="_blank">Theory site</a>
+  </div>
+  <div class="ft-right">
+    ρ heals · κ hides · σ kills<br>
+    <span style="color:var(--border)">Not financial advice · Structural diagnosis only</span>
+  </div>
 </footer>
 
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SCORING ENGINE — pure deterministic JS                     -->
+<!-- ═══════════════════════════════════════════════════════════ -->
 <script>
-// ── DEMO DATA (replace with output from dst_scanner.py) ────────────────────
-const DATA = [
-  {ticker:"NVDA",name:"NVIDIA Corp",sector:"Technology",price:875,market_cap:2150e9,theta:82,regime:"Elastic",apparent:78,obs_gap:0,sigma_score:8,rho_score:42,kappa_score:4,sigma_eff_note:"contained — ρ absorbing load",theta_trajectory:"↑ +3.2 pts/scan",findings:[
-    {metric:"current_ratio",value:4.17,impact:15,category:"rho",message:"Current ratio=4.17 — strong liquidity buffer. Elastic zone."},
-    {metric:"fcf_yield",value:0.031,impact:7,category:"rho",message:"FCF yield=3.1% — positive. Cash generation healthy."},
-    {metric:"leverage",value:0.4,impact:5,category:"sigma",message:"Debt/EBITDA=0.4x — elastic. Low leverage stress."},
-    {metric:"accruals_ratio",value:0.01,impact:4,category:"rho",message:"Accruals ratio=1% — high earnings quality. ρ signal."},
-  ]},
-  {ticker:"AAPL",name:"Apple Inc",sector:"Technology",price:185,market_cap:2900e9,theta:76,regime:"Elastic",apparent:72,obs_gap:4,sigma_score:12,rho_score:38,kappa_score:6,sigma_eff_note:"contained — ρ absorbing load",theta_trajectory:"→ stable",findings:[
-    {metric:"current_ratio",value:0.99,impact:-15,category:"sigma",message:"Current ratio=0.99 — BELOW 1.0. Liquidity suffocation. Residual signal."},
-    {metric:"fcf_yield",value:0.038,impact:7,category:"rho",message:"FCF yield=3.8% — positive. Cash generation healthy."},
-    {metric:"leverage",value:1.2,impact:-4,category:"sigma",message:"Debt/EBITDA=1.2x — manageable."},
-    {metric:"margin_trend",value:0.018,impact:4,category:"rho",message:"Gross margin improved 1.8% YoY — structural healing."},
-  ]},
-  {ticker:"MSFT",name:"Microsoft Corp",sector:"Technology",price:412,market_cap:3060e9,theta:88,regime:"Elastic",apparent:85,obs_gap:3,sigma_score:6,rho_score:48,kappa_score:3,sigma_eff_note:"contained — ρ absorbing load",theta_trajectory:"↑ +1.8 pts/scan",findings:[
-    {metric:"fcf_yield",value:0.028,impact:7,category:"rho",message:"FCF yield=2.8% — positive."},
-    {metric:"leverage",value:0.8,impact:5,category:"sigma",message:"Debt/EBITDA=0.8x — elastic."},
-    {metric:"current_ratio",value:1.77,impact:8,category:"rho",message:"Current ratio=1.77 — healthy."},
-  ]},
-  {ticker:"T",name:"AT&T Inc",sector:"Communication",price:16,market_cap:115e9,theta:28,regime:"Late Plastic",apparent:55,obs_gap:27,sigma_score:48,rho_score:8,kappa_score:22,sigma_eff_note:"elevated — κ near exhaustion",theta_trajectory:"↓ -2.1 pts/scan",findings:[
-    {metric:"leverage",value:7.8,impact:-25,category:"sigma",message:"Debt/EBITDA=7.8x — critical. System under terminal leverage stress."},
-    {metric:"interest_burden",value:0.52,impact:-22,category:"sigma",message:"Interest/OpIncome=52% — >60% of earnings burn on interest."},
-    {metric:"debt_growth",value:0.08,impact:-2,category:"sigma",message:"Debt flat YoY — σ stable."},
-    {metric:"current_ratio",value:0.62,impact:-15,category:"sigma",message:"Current ratio=0.62 — BELOW 1.0. Liquidity suffocation."},
-    {metric:"accruals_ratio",value:0.09,impact:-12,category:"kappa",message:"Accruals ratio=9% — earnings quality low. κ: reported income masked."},
-    {metric:"fcf_yield",value:0.11,impact:14,category:"rho",message:"FCF yield=11% — high. Generates real capital despite debt load."},
-  ]},
-  {ticker:"VZ",name:"Verizon Communications",sector:"Communication",price:38,market_cap:160e9,theta:31,regime:"Late Plastic",apparent:58,obs_gap:27,sigma_score:44,rho_score:12,kappa_score:18,sigma_eff_note:"elevated — κ near exhaustion",theta_trajectory:"↓ -1.8 pts/scan",findings:[
-    {metric:"leverage",value:6.9,impact:-18,category:"sigma",message:"Debt/EBITDA=6.9x — late plastic. κ running out."},
-    {metric:"interest_burden",value:0.41,impact:-15,category:"sigma",message:"Interest/OpIncome=41% — rate environment crushing structure."},
-    {metric:"current_ratio",value:0.54,impact:-15,category:"sigma",message:"Current ratio=0.54 — BELOW 1.0. Liquidity suffocation."},
-    {metric:"fcf_yield",value:0.09,impact:14,category:"rho",message:"FCF yield=9% — high. Real capital generation."},
-  ]},
-  {ticker:"WBD",name:"Warner Bros Discovery",sector:"Communication",price:8,market_cap:19e9,theta:12,regime:"Residual",apparent:44,obs_gap:32,sigma_score:62,rho_score:6,kappa_score:28,sigma_eff_note:"critical — σ dominant",theta_trajectory:"↓ -4.2 pts/scan",findings:[
-    {metric:"leverage",value:11.2,impact:-25,category:"sigma",message:"Debt/EBITDA=11.2x — critical. System under terminal leverage stress."},
-    {metric:"interest_burden",value:0.74,impact:-22,category:"sigma",message:"Interest/OpIncome=74% — >60% of earnings burn on interest. Residual."},
-    {metric:"goodwill_ratio",value:0.61,impact:-12,category:"kappa",message:"Goodwill=61% of assets — κ_a. Write-down risk masks real book value."},
-    {metric:"accruals_ratio",value:0.12,impact:-12,category:"kappa",message:"Accruals ratio=12% — earnings quality low. κ: reported income masked."},
-    {metric:"current_ratio",value:0.41,impact:-15,category:"sigma",message:"Current ratio=0.41 — BELOW 1.0. Liquidity suffocation. Residual signal."},
-    {metric:"fcf_vs_net",value:0.31,impact:-10,category:"kappa",message:"FCF/NetIncome=0.3x — earnings not converting to cash. Classic κ_a."},
-  ]},
-  {ticker:"MPW",name:"Medical Properties Trust",sector:"Real Estate",price:4,market_cap:2.4e9,theta:8,regime:"Residual",apparent:35,obs_gap:27,sigma_score:68,rho_score:3,kappa_score:32,sigma_eff_note:"critical — σ dominant",theta_trajectory:"↓ -5.1 pts/scan",findings:[
-    {metric:"leverage",value:14.8,impact:-25,category:"sigma",message:"Debt/EBITDA=14.8x — critical. System under terminal leverage stress."},
-    {metric:"interest_burden",value:0.91,impact:-22,category:"sigma",message:"Interest/OpIncome=91% — >60% of earnings burn on interest. Residual."},
-    {metric:"goodwill_ratio",value:0.52,impact:-12,category:"kappa",message:"Goodwill=52% of assets — κ_a. Write-down risk."},
-    {metric:"current_ratio",value:0.28,impact:-15,category:"sigma",message:"Current ratio=0.28 — BELOW 1.0. Critical liquidity suffocation."},
-    {metric:"debt_growth",value:0.34,impact:-14,category:"sigma",message:"Debt grew 34% YoY — σ accumulating faster than capacity."},
-    {metric:"fcf_yield",value:-0.08,impact:-8,category:"sigma",message:"FCF yield=-8% — NEGATIVE. Burning cash. σ amplifier."},
-  ]},
-  {ticker:"INTC",name:"Intel Corp",sector:"Technology",price:19,market_cap:82e9,theta:38,regime:"Late Plastic",apparent:60,obs_gap:22,sigma_score:38,rho_score:10,kappa_score:20,sigma_eff_note:"elevated — κ near exhaustion",theta_trajectory:"↓ -3.4 pts/scan",findings:[
-    {metric:"margin_trend",value:-0.08,impact:-10,category:"sigma",message:"Gross margin collapsed 8% YoY — σ amplifying through margins."},
-    {metric:"fcf_yield",value:-0.04,impact:-8,category:"sigma",message:"FCF yield=-4% — NEGATIVE. Burning cash."},
-    {metric:"leverage",value:3.8,impact:-10,category:"sigma",message:"Debt/EBITDA=3.8x — plastic. Monitoring required."},
-    {metric:"goodwill_ratio",value:0.31,impact:-6,category:"kappa",message:"Goodwill=31% of assets — elevated."},
-    {metric:"accruals_ratio",value:0.06,impact:-5,category:"kappa",message:"Accruals ratio=6% — moderate. FCF vs net income diverging."},
-  ]},
-  {ticker:"F",name:"Ford Motor Co",sector:"Consumer Cyclical",price:11,market_cap:44e9,theta:44,regime:"Late Plastic",apparent:62,obs_gap:18,sigma_score:34,rho_score:14,kappa_score:18,sigma_eff_note:"elevated — κ near exhaustion",theta_trajectory:"↓ -1.2 pts/scan",findings:[
-    {metric:"leverage",value:5.1,impact:-10,category:"sigma",message:"Debt/EBITDA=5.1x — plastic. Monitoring required."},
-    {metric:"interest_burden",value:0.32,impact:-8,category:"sigma",message:"Interest/OpIncome=32% — elevated. Financing pain rising."},
-    {metric:"current_ratio",value:1.2,impact:2,category:"rho",message:"Current ratio=1.2 — adequate. Minimal buffer."},
-    {metric:"debt_growth",value:0.12,impact:-7,category:"sigma",message:"Debt grew 12% YoY — loading increasing."},
-  ]},
-  {ticker:"JPM",name:"JPMorgan Chase",sector:"Financial",price:196,market_cap:565e9,theta:68,regime:"Plastic",apparent:70,obs_gap:2,sigma_score:18,rho_score:32,kappa_score:10,sigma_eff_note:"partially masked — κ active",theta_trajectory:"→ stable",findings:[
-    {metric:"fcf_yield",value:0.06,impact:12,category:"rho",message:"FCF yield=6% — positive. Cash generation healthy."},
-    {metric:"leverage",value:2.1,impact:-4,category:"sigma",message:"Debt/EBITDA=2.1x — manageable."},
-    {metric:"current_ratio",value:1.1,impact:2,category:"rho",message:"Current ratio=1.1 — adequate."},
-  ]},
-  {ticker:"OXY",name:"Occidental Petroleum",sector:"Energy",price:48,market_cap:45e9,theta:52,regime:"Plastic",apparent:65,obs_gap:13,sigma_score:28,rho_score:22,kappa_score:12,sigma_eff_note:"partially masked — κ active",theta_trajectory:"↑ +0.8 pts/scan",findings:[
-    {metric:"leverage",value:4.2,impact:-10,category:"sigma",message:"Debt/EBITDA=4.2x — plastic. Monitoring required."},
-    {metric:"fcf_yield",value:0.09,impact:14,category:"rho",message:"FCF yield=9% — high. Real capital generation."},
-    {metric:"interest_burden",value:0.22,impact:3,category:"sigma",message:"Interest/OpIncome=22% — contained."},
-  ]},
-  {ticker:"TSLA",name:"Tesla Inc",sector:"Consumer Cyclical",price:170,market_cap:540e9,theta:57,regime:"Plastic",apparent:65,obs_gap:8,sigma_score:22,rho_score:26,kappa_score:14,sigma_eff_note:"partially masked — κ active",theta_trajectory:"↓ -1.9 pts/scan",findings:[
-    {metric:"margin_trend",value:-0.06,impact:-10,category:"sigma",message:"Gross margin collapsed 6% YoY — σ amplifying through margins."},
-    {metric:"fcf_yield",value:0.02,impact:2,category:"rho",message:"FCF yield=2% — minimal positive FCF."},
-    {metric:"current_ratio",value:1.73,impact:8,category:"rho",message:"Current ratio=1.73 — healthy."},
-    {metric:"leverage",value:0.5,impact:5,category:"sigma",message:"Debt/EBITDA=0.5x — elastic. Low leverage stress."},
-  ]},
-];
+'use strict';
 
-// ── STATE ──────────────────────────────────────────────────────────────────
-let filtered = [...DATA];
-let activeRegime = 'all';
-let searchQuery = '';
-let sortKey = 'theta';
-let sortDir = 'asc';
+// ── EXTRACTION PROMPT ──────────────────────────────────────────
+const EXTRACTION_PROMPT = `You are a financial data extraction engine for the DST Financial Scanner.
+Given a stock ticker, return ONLY a valid JSON object. No markdown, no explanation, no extra text.
+Extract the most recent 4 annual periods. Use null for unknown values.
+All monetary values in millions USD. Share counts in millions.
 
-// ── HELPERS ────────────────────────────────────────────────────────────────
-function regimeColor(r){
-  if(r==='Elastic') return 'var(--green)';
-  if(r==='Plastic') return 'var(--amber)';
-  if(r==='Late Plastic') return 'var(--orange)';
-  return 'var(--red)';
+{
+  "ticker": "AAPL",
+  "company": "Apple Inc.",
+  "sector": "Technology",
+  "sector_type": "consumer_brand",
+  "data_confidence": 0.95,
+  "periods": ["FY2022","FY2023","FY2024","TTM"],
+  "income": {
+    "revenue":          [394330,383285,391035,435617],
+    "cost_of_revenue":  [223546,214137,210352,229460],
+    "gross_profit":     [170782,169148,180683,206157],
+    "operating_expense":[51345,54847,57467,65087],
+    "operating_income": [119437,114301,123216,141070],
+    "other_income":     [null,-565,269,77],
+    "pretax_income":    [119103,113736,123485,141147],
+    "tax_provision":    [19300,16741,29749,23370],
+    "net_income":       [99803,96995,93736,117777]
+  },
+  "balance": {
+    "total_assets":        [352755,352583,364980,364980],
+    "total_liabilities":   [302083,290437,308030,308030],
+    "total_equity":        [50672,62146,56950,73733],
+    "total_debt":          [120069,111108,101304,98657],
+    "cash":                [23646,29965,29943,29943],
+    "current_assets":      [135405,143566,152987,152987],
+    "current_liabilities": [153982,145308,176392,176392],
+    "goodwill":            [0,0,0,0],
+    "intangibles":         [0,0,0,0],
+    "accounts_receivable": [28184,29508,33410,33410],
+    "shares_outstanding":  [15943,15552,15441,15204]
+  },
+  "cashflow": {
+    "operating_cf":   [122151,113736,112305,118254],
+    "capex":          [-10708,-10959,-9447,-9447],
+    "free_cash_flow": [111443,102777,108858,108807],
+    "financing_cf":   [-110749,-108488,-121983,-121983],
+    "dividends_paid": [-14841,-15025,-15234,-15025]
+  }
 }
-function thetaColor(t){
-  if(t>=75) return 'var(--green)';
-  if(t>=50) return 'var(--amber)';
-  if(t>=25) return 'var(--orange)';
-  return 'var(--red)';
-}
-function chipClass(r){
-  if(r==='Elastic') return 'chip-elastic';
-  if(r==='Plastic') return 'chip-plastic';
-  if(r==='Late Plastic') return 'chip-late';
-  return 'chip-residual';
-}
-function fmtCap(v){
-  if(!v) return '—';
-  if(v>=1e12) return `$${(v/1e12).toFixed(1)}T`;
-  if(v>=1e9)  return `$${(v/1e9).toFixed(0)}B`;
-  return `$${(v/1e6).toFixed(0)}M`;
-}
-function gapClass(g,sev){
-  if(g>=30||sev==='critical') return 'gap-critical';
-  if(g>=20||sev==='high')     return 'gap-high';
-  if(g>=10||sev==='medium')   return 'gap-medium';
-  return 'gap-low';
-}
-function trajClass(t){
-  if(t&&t.startsWith('↑')) return 'traj-up';
-  if(t&&t.startsWith('↓')) return 'traj-dn';
-  return 'traj-st';
+sector_type options: "consumer_brand" | "tech_software" | "manufacturing" | "retail" | "energy" | "financial" | "healthcare" | "other"
+Use "financial" for banks/insurers — these will receive a limited analysis notice.`;
+
+// ── MATH HELPERS ───────────────────────────────────────────────
+const safe = (a,b) => (b && b!==0 && !isNaN(b)) ? a/b : null;
+const pct  = (v,d=1) => v!==null ? +(v*100).toFixed(d) : null;
+const fmt  = (v,d=1) => v!==null ? +v.toFixed(d) : null;
+const last = arr => Array.isArray(arr) ? arr[arr.length-1] : arr;
+const prev = (arr,n=1) => Array.isArray(arr) ? arr[arr.length-1-n] : null;
+const clamp= (v,lo,hi) => Math.max(lo, Math.min(hi, v));
+const abs  = Math.abs;
+const fnd  = (rule,value,score,type,text,detail='') => ({rule,value,score,type,text,detail});
+
+// ── BLOCK 1: Revenue & Margin ──────────────────────────────────
+function scoreBlock1(d) {
+  const f=[]; let tot=0; const {income}=d;
+  const rev=last(income.revenue), revP=prev(income.revenue);
+  if(rev&&revP){ const g=(rev-revP)/revP; const s=g>=.15?8:g>=.05?4:g>=0?1:-8; tot+=s;
+    f.push(fnd('Rev Growth', pct(g)+'%', s, s>0?'rho':'sigma',
+      `Revenue grew ${pct(g)}% YoY`,
+      s>=8?'Strong demand — top tier':s>=4?'Healthy growth':s>=1?'Stagnating — watch':'Declining business — primary red flag')); }
+  const gm=safe(last(income.gross_profit),rev);
+  if(gm!==null){ const s=gm>.5?8:gm>.3?5:gm>.2?1:-5; tot+=s;
+    f.push(fnd('Gross Margin', pct(gm)+'%', s, s>0?'rho':'sigma',
+      `Gross margin ${pct(gm)}%`,
+      s>=8?'Pricing power / moat':s>=5?'Solid margin':s>=1?'Thin margins':'Commodity-level business')); }
+  const gmN=safe(last(income.gross_profit),last(income.revenue));
+  const gmO=safe(income.gross_profit[0],income.revenue[0]);
+  if(gmN!==null&&gmO!==null){ const diff=(gmN-gmO)*100; const s=diff>=2?5:diff>=-2?0:-5; tot+=s;
+    if(s!==0) f.push(fnd('GM Trend', (diff>0?'+':'')+fmt(diff)+'pp', s, s>0?'rho':'sigma',
+      `Margin ${diff>0?'expanded':'compressed'} ${abs(fmt(diff))}pp over 3 years`,
+      s>0?'Pricing power increasing — ρ signal':'Margin under structural pressure')); }
+  const opInc=last(income.operating_income); const om=safe(opInc,rev);
+  if(om!==null){ const s=om>.2?8:om>.1?4:om>.05?0:-6; tot+=s;
+    f.push(fnd('Op Margin', pct(om)+'%', s, s>=4?'rho':s===0?'neutral':'sigma',
+      `Operating margin ${pct(om)}%`,
+      s>=8?'Highly efficient — top tier':s>=4?'Good operating leverage':s===0?'Thin but positive':'Structural stress on profitability')); }
+  const ni=last(income.net_income); const nm=safe(ni,rev);
+  if(nm!==null){ const s=nm>.15?6:nm>.05?3:nm>0?0:-6; tot+=s;
+    f.push(fnd('Net Margin', pct(nm)+'%', s, s>=3?'rho':s===0?'neutral':'sigma',
+      `Net margin ${pct(nm)}%`,
+      s>=6?'Exceptional bottom line':s>=3?'Adequate profitability':s===0?'Barely profitable':'Losing money')); }
+  const opex=last(income.operating_expense), opexP=prev(income.operating_expense), revP2=prev(income.revenue);
+  if(opex&&opexP&&rev&&revP2){ const og=(opex-opexP)/opexP, rg=(rev-revP2)/revP2;
+    const s=og<rg-.02?0:og<rg+.02?-2:-8; tot+=s;
+    if(s<0) f.push(fnd('OpEx Trend', pct(og)+'% vs Rev '+pct(rg)+'%', s, s<=-8?'sigma':'neutral',
+      `OpEx growing ${s<=-8?'faster than':'in line with'} revenue`,
+      s<=-8?'σ amplifier — costs outrunning growth':'Flat scaling — minor concern')); }
+  return {name:'Revenue & Margin', subtotal:tot, findings:f};
 }
 
-// ── SUMMARY PILLS ─────────────────────────────────────────────────────────
-function renderSummary(){
-  const counts = {Elastic:0,Plastic:0,'Late Plastic':0,Residual:0};
-  DATA.forEach(d=>counts[d.regime]=(counts[d.regime]||0)+1);
-  const avg = Math.round(DATA.reduce((s,d)=>s+d.theta,0)/DATA.length);
-  const worstGap = Math.max(...DATA.map(d=>d.obs_gap));
-  document.getElementById('summaryRow').innerHTML = `
-    <div class="pill"><span class="pill-val">${DATA.length}</span><span class="pill-label">Companies</span></div>
-    <div class="pill"><span class="pill-val" style="color:var(--blue)">${avg}</span><span class="pill-label">Avg Θ</span></div>
-    <div class="pill elastic"><span class="pill-val">${counts.Elastic}</span><span class="pill-label">Elastic 🟢</span></div>
-    <div class="pill plastic"><span class="pill-val">${counts.Plastic}</span><span class="pill-label">Plastic 🟡</span></div>
-    <div class="pill late"><span class="pill-val">${counts['Late Plastic']}</span><span class="pill-label">Late Plastic 🟠</span></div>
-    <div class="pill residual"><span class="pill-val">${counts.Residual}</span><span class="pill-label">Residual 🔴</span></div>
-    <div class="pill"><span class="pill-val" style="color:var(--red)">${worstGap}</span><span class="pill-label">Max Obs. Gap</span></div>
-  `;
+// ── BLOCK 2: Solvency & Leverage ──────────────────────────────
+function scoreBlock2(d) {
+  const f=[]; let tot=0; const {income,balance}=d;
+  const debt=last(balance.total_debt), assets=last(balance.total_assets),
+        opInc=last(income.operating_income), cash=last(balance.cash);
+  if(debt&&assets){ const dr=safe(debt,assets); const s=dr<.3?6:dr<.6?2:-8; tot+=s;
+    f.push(fnd('Debt/Assets', pct(dr)+'%', s, s>=2?'rho':'sigma',
+      `Debt is ${pct(dr)}% of total assets`,
+      s>=6?'Conservatively financed':s>=2?'Moderate leverage':'Heavily leveraged balance sheet')); }
+  if(debt&&opInc&&opInc>0){ const doi=safe(debt,opInc); const s=doi<2?6:doi<4?2:-10; tot+=s;
+    f.push(fnd('Debt/OpInc', fmt(doi,2)+'×', s, s>=2?'rho':'sigma',
+      `Debt is ${fmt(doi,2)}× annual operating income`,
+      s>=6?'Easily serviceable':s>=2?'Manageable — watch trajectory':'Dangerous debt load')); }
+  if(debt!==null&&cash!==null){ const nd=debt-cash; const fcf=last(d.cashflow.free_cash_flow);
+    const s=nd<0?6:(fcf&&nd<fcf*3)?2:-6; tot+=s;
+    f.push(fnd('Net Debt', nd<0?'Net cash':'$'+Math.round(nd/1000).toLocaleString()+'B', s,
+      s>=2?'rho':'sigma',
+      nd<0?'Net cash position — fortress balance sheet':`Net debt $${Math.round(nd/1000).toLocaleString()}B`,
+      s>=6?'More cash than debt':s>=2?'Manageable vs cash generation':'Heavy net debt relative to FCF')); }
+  const tl=last(balance.total_liabilities), tlO=balance.total_liabilities[0], taO=balance.total_assets[0];
+  if(tl&&tlO&&assets&&taO){ const r=tl/assets, rO=tlO/taO;
+    const s=r<rO-.03?5:r>rO+.05?-5:0; tot+=s;
+    if(s!==0) f.push(fnd('Liab Trend', (r>rO?'+':'')+fmt((r-rO)*100)+'pp', s, s>0?'rho':'sigma',
+      s>0?'Liabilities declining relative to assets':'Liabilities rising — leverage creeping up',
+      s>0?'Balance sheet strengthening over time':'Monitor debt accumulation trajectory')); }
+  return {name:'Solvency & Leverage', subtotal:tot, findings:f};
 }
 
-// ── RENDER TABLE ──────────────────────────────────────────────────────────
-function renderTable(){
-  const tbody = document.getElementById('tbody');
-  tbody.innerHTML = '';
-  filtered.forEach((d,i)=>{
-    const color = thetaColor(d.theta);
-    const pct   = d.theta;
-    const gClass = gapClass(d.obs_gap,'');
-    const tClass = trajClass(d.theta_trajectory);
+// ── BLOCK 3: Liquidity ────────────────────────────────────────
+function scoreBlock3(d) {
+  const f=[]; let tot=0;
+  const {balance}=d;
+  const ca=last(balance.current_assets), cl=last(balance.current_liabilities);
+  const gm=safe(last(d.income.gross_profit),last(d.income.revenue));
+  const ocf=last(d.cashflow.operating_cf);
+  if(ca&&cl){ const cr=safe(ca,cl);
+    const isConsumer=(d.sector_type==='consumer_brand'||d.sector_type==='retail')&&gm!==null&&gm>.3&&ocf>0;
+    if(cr<1.0&&isConsumer){ tot+=-2;
+      f.push(fnd('Curr Ratio', fmt(cr,2)+'×', -2, 'kappa_c',
+        `Current ratio ${fmt(cr,2)}× — sector κ_c flag applied`,
+        'Negative WC is conscripted by consumer brand model (collect before paying suppliers). Competitive advantage, not weakness. Penalty capped at floor rate.')); }
+    else{ const s=cr>2?6:cr>1.2?3:cr>1?0:-10; tot+=s;
+      f.push(fnd('Curr Ratio', fmt(cr,2)+'×', s, s>=3?'rho':s===0?'neutral':'sigma',
+        `Current ratio ${fmt(cr,2)}×`,
+        s>=6?'Strong short-term cushion':s>=3?'Adequate liquidity':s===0?'Tight — monitor closely':'Liquidity risk — immediate concern if operations soften')); } }
+  const wc=ca-cl, wcO=balance.current_assets[0]-balance.current_liabilities[0];
+  if(!isNaN(wc)&&!isNaN(wcO)){ const s=wc>wcO*1.1?5:wc<wcO*.85?-5:0; tot+=s;
+    if(s!==0) f.push(fnd('WC Trend', (wc>wcO?'+':'')+Math.round((wc-wcO)/1000).toLocaleString()+'B',
+      s, s>0?'rho':'sigma',
+      s>0?'Working capital improving':'Working capital deteriorating',
+      s>0?'Short-term position strengthening':'Operational stress building in short-term obligations')); }
+  const gw=(last(balance.goodwill)||0)+(last(balance.intangibles)||0), ta=last(balance.total_assets);
+  if(ta){ const ir=gw/ta; const s=ir<.2?0:ir<.5?-3:-10; tot+=s;
+    if(s<0) f.push(fnd('GW+Intang', pct(ir)+'% of assets', s, 'kappa_a',
+      `Goodwill/intangibles = ${pct(ir)}% of total assets`,
+      s<=-10?'κ_a — BS masking via acquisition premiums. More than half of assets are not tangible.':'Acquisition premium risk — monitor for impairment charges')); }
+  return {name:'Liquidity & Survival', subtotal:tot, findings:f};
+}
 
-    // Main row
-    const tr = document.createElement('tr');
-    tr.style.cursor = 'pointer';
-    tr.onclick = ()=>toggleDetail(i);
-    tr.innerHTML = `
-      <td class="ticker-col" style="color:${color}">${d.ticker}</td>
-      <td class="name-col">${d.name}</td>
-      <td><span style="font-size:11px;color:var(--muted)">${d.sector}</span></td>
-      <td>
-        <div class="theta-wrap">
-          <span class="theta-num" style="color:${color}">${d.theta}</span>
-          <div class="theta-bar"><div class="theta-fill" style="width:${pct}%;background:${color}"></div></div>
+// ── BLOCK 4: Earnings Quality ─────────────────────────────────
+function scoreBlock4(d) {
+  const f=[]; let tot=0; const {income,balance,cashflow}=d;
+  const ocf=last(cashflow.operating_cf), ni=last(income.net_income);
+  if(ocf&&ni&&ni!==0){ const r=safe(ocf,ni); const s=r>=1?8:r>=.7?3:r>=.5?-3:-10; tot+=s;
+    f.push(fnd('OCF/NI', fmt(r,2)+'×', s, s>=3?'rho':s<=-3?'kappa_a':'neutral',
+      `Operating cash flow is ${fmt(r,2)}× net income`,
+      s>=8?'Every profit dollar backed by real cash — exceptional earnings quality':
+      s>=3?'Cash earnings roughly match reported profits':
+      s>=-3?'Cash conversion weakening — watch trend':
+      'κ_a — profits significantly exceed cash. Earnings quality compromised.')); }
+  const oi=last(income.other_income);
+  if(oi!==null&&ni&&ni>0){ const ratio=abs(oi)/abs(ni); const s=ratio<.05?0:ratio<.2?-3:-8; tot+=s;
+    if(s<0) f.push(fnd('Other Inc/NI', pct(ratio)+'%', s, 'kappa_a',
+      `Non-operating income is ${pct(ratio)}% of net income`,
+      s<=-8?'κ_a — earnings significantly distorted by non-core items':'Minor earnings distortion')); }
+  const trs=income.tax_provision.map((t,i)=>income.pretax_income[i]?t/income.pretax_income[i]:null).filter(v=>v!==null);
+  if(trs.length>=2){ const avg=trs.reduce((a,b)=>a+b,0)/trs.length, lr=trs[trs.length-1], sw=abs(lr-avg);
+    if(sw>.1){ tot+=-5; f.push(fnd('Tax Stability', pct(sw)+'pp swing', -5, 'kappa_i',
+      `Tax rate swung ${pct(sw)}pp from average`,
+      'κ_i — one-time tax benefit or charge. This period\'s earnings may not repeat at this rate.')); } }
+  const ar=last(balance.accounts_receivable), arO=balance.accounts_receivable[0];
+  const rev=last(income.revenue), revO=income.revenue[0];
+  if(ar&&arO&&rev&&revO){ const arG=(ar-arO)/arO, revG=(rev-revO)/revO;
+    if(arG>revG*1.5&&arG>.1){ const s=arG>revG*2?-8:-3; tot+=s;
+      f.push(fnd('AR vs Rev', pct(arG)+'% vs '+pct(revG)+'%', s, 'kappa_a',
+        `AR growing ${fmt(arG/revG,1)}× faster than revenue`,
+        s<=-8?'κ_a — revenue booked but not collected. Write-down risk.':'AR growth outpacing revenue')); } }
+  return {name:'Earnings Quality', subtotal:tot, findings:f};
+}
+
+// ── BLOCK 5: Cash Engine ──────────────────────────────────────
+function scoreBlock5(d) {
+  const f=[]; let tot=0; const {income,cashflow}=d;
+  const fcf=last(cashflow.free_cash_flow), rev=last(income.revenue), ocf=last(cashflow.operating_cf);
+  if(fcf!==null&&rev){ const fm=safe(fcf,rev); const s=fm>.15?10:fm>.05?6:fm>0?2:-12; tot+=s;
+    f.push(fnd('FCF Margin', pct(fm)+'%', s, s>=6?'rho':s>=2?'neutral':'sigma',
+      `Free cash flow margin ${pct(fm)}%`,
+      s>=10?'Exceptional cash machine — primary ρ signal':s>=6?'Solid free cash generation':
+      s>=2?'Marginal positive — needs improvement':'σ critical — burning cash after capital investment')); }
+  const ocfArr=cashflow.operating_cf.filter(v=>v!==null);
+  if(ocfArr.length>=3){ const cagr=(ocfArr[ocfArr.length-1]/ocfArr[0])**(1/(ocfArr.length-1))-1;
+    const s=cagr>.05?6:cagr>-.02?2:-6; tot+=s;
+    f.push(fnd('OCF Trend', pct(cagr)+'% CAGR', s, s>=2?'rho':'sigma',
+      `Operating CF ${cagr>=0?'growing':'declining'} at ${abs(pct(cagr))}% annually`,
+      s>=6?'Consistent cash growth — real capacity building':s>=2?'Flat but stable':'Declining cash generation — fundamental weakening')); }
+  const capex=last(cashflow.capex);
+  if(capex!==null&&rev){ const cr=abs(capex)/rev; const s=cr<.05?0:cr<.15?-2:-6; tot+=s;
+    f.push(fnd('CapEx/Rev', pct(cr)+'%', s, s===0?'rho':s<=-6?'sigma':'neutral',
+      `CapEx is ${pct(cr)}% of revenue`,
+      s===0?'Asset-light — scales without proportional reinvestment':
+      s>=-2?'Normal capital intensity':'Capital-intensive σ amplifier')); }
+  const debtN=last(d.balance.total_debt), debtO=d.balance.total_debt[0];
+  if(debtN!==null&&debtO!==null){ const dd=debtN-debtO; const s=dd<-5000?5:dd<5000?0:(ocf&&dd>ocf)?-8:-3; tot+=s;
+    if(s!==0) f.push(fnd('Debt Trend', dd<0?'-$'+abs(Math.round(dd/1000))+'B repaid':'+$'+Math.round(dd/1000)+'B added',
+      s, s>0?'rho':'sigma',
+      dd<0?'Net debt repayment over analysis period':'Debt accumulating',
+      s>=5?'Deleveraging — ρ healing':s===0?'Debt roughly stable':s>=-3?'Debt growing — monitor purpose':'σ critical — debt outpacing cash generation')); }
+  return {name:'Cash Engine', subtotal:tot, findings:f};
+}
+
+// ── BLOCK 6: Capital Allocation ───────────────────────────────
+function scoreBlock6(d) {
+  const f=[]; let tot=0; const {balance,cashflow,income}=d;
+  const sh=last(balance.shares_outstanding), shO=balance.shares_outstanding[0];
+  if(sh&&shO){ const delta=(sh-shO)/shO; const s=delta<-.01?5:delta<.02?0:-6; tot+=s;
+    if(s!==0) f.push(fnd('Share Trend', pct(delta)+'% '+(delta<0?'decline':'increase'),
+      s, s>0?'rho':'kappa_a',
+      delta<-.01?`Shares declined ${abs(pct(delta))}% — buybacks rewarding holders`:`Share count grew ${pct(delta)}% — dilution detected`,
+      s>=5?'FCF-funded buybacks increase each holder\'s structural claim':'κ_a — dilution masking per-share deterioration')); }
+  const divs=last(cashflow.dividends_paid), fcf=last(cashflow.free_cash_flow);
+  if(divs!==null&&divs<0&&fcf!==null&&fcf>0){ const dr=abs(divs)/abs(fcf); const s=dr<.5?0:dr<.75?-3:-8; tot+=s;
+    f.push(fnd('Div/FCF', pct(dr)+'%', s, s===0?'rho':'kappa_a',
+      `Dividends consume ${pct(dr)}% of FCF`,
+      s===0?'Highly sustainable dividend':s>=-3?'Dividend coverage tightening':'κ_a — dividend consuming nearly all FCF. Not sustainable.')); }
+  const opInc=last(income.operating_income), ta=last(balance.total_assets), cash=last(balance.cash);
+  if(opInc&&ta&&cash){ const ic=ta-cash; const roic=safe(opInc,ic); const s=roic>.2?6:roic>.1?3:roic>.08?0:-4; tot+=s;
+    f.push(fnd('ROIC', pct(roic)+'%', s, s>=3?'rho':s<=-4?'sigma':'neutral',
+      `Return on invested capital: ${pct(roic)}%`,
+      s>=6?'Exceptional — far above cost of capital':s>=3?'Good returns on capital':s===0?'At cost of capital — neutral':'Destroying value — below cost of capital')); }
+  return {name:'Capital Allocation', subtotal:tot, findings:f};
+}
+
+// ── DST MAPPING ───────────────────────────────────────────────
+function mapToDST(blocks) {
+  let sigma=0, kappa_a=0, kappa_c=0, kappa_i=0, rho=0;
+  for(const f of blocks.flatMap(b=>b.findings)) {
+    const s=abs(f.score);
+    if(f.type==='sigma')   sigma+=s;
+    if(f.type==='kappa_a') kappa_a+=s;
+    if(f.type==='kappa_c') kappa_c+=s;
+    if(f.type==='kappa_i') kappa_i+=s;
+    if(f.type==='rho')     rho+=s;
+  }
+  return {sigma, kappa_a, kappa_c, kappa_i, kappa:kappa_a+kappa_c+kappa_i, rho};
+}
+
+// ── REGIME ────────────────────────────────────────────────────
+function classifyRegime(theta) {
+  if(theta>=80) return {name:'Elastic',     color:'#3b6d11', bg:'#eaf3de', desc:'ρ dominant. Real capacity growing or stable. IS face value roughly matches CF reality.',          intervention:'Invest aggressively. Monitor κ_i expiration conditions.'};
+  if(theta>=60) return {name:'Plastic',     color:'#185fa5', bg:'#e6f1fb', desc:'κ active — masking maintaining apparent stability. Real capacity declining beneath surface.',     intervention:'For every σ added, close one κ channel.'};
+  if(theta>=40) return {name:'Late Plastic',color:'#854f0b', bg:'#faeeda', desc:'κ near saturation. Observable metrics diverging from structural reality. Each action costs more.',intervention:'Freeze new capital deployment. Fix top σ sources first.'};
+  return             {name:'Residual',      color:'#a32d2d', bg:'#fcebeb', desc:'κ exhausted. Θ → 0. Apparent stability is administrative only. Terminal condition satisfied.', intervention:'STOP new deployment. Structural failure is embedded in the data.'};
+}
+
+// ── TRAJECTORY ────────────────────────────────────────────────
+function calcTrajectory(d) {
+  const results=[];
+  for(let i=0; i<d.periods.length; i++) {
+    const s = {
+      ...d,
+      income:   Object.fromEntries(Object.entries(d.income).map(([k,v])=>[k,Array.isArray(v)?v.slice(0,i+1):v])),
+      balance:  Object.fromEntries(Object.entries(d.balance).map(([k,v])=>[k,Array.isArray(v)?v.slice(0,i+1):v])),
+      cashflow: Object.fromEntries(Object.entries(d.cashflow).map(([k,v])=>[k,Array.isArray(v)?v.slice(0,i+1):v])),
+    };
+    try {
+      const bs=[scoreBlock1,scoreBlock2,scoreBlock3,scoreBlock4,scoreBlock5,scoreBlock6].map(fn=>fn(s));
+      const v=mapToDST(bs);
+      results.push(clamp(Math.round(50+v.rho-v.sigma-v.kappa),0,100));
+    } catch { results.push(null); }
+  }
+  const valid=results.filter(v=>v!==null);
+  if(valid.length<2) return {path:results, dTheta:null, d2Theta:null, direction:'unknown'};
+  const deltas=valid.slice(1).map((v,i)=>v-valid[i]);
+  const dTheta=fmt(deltas.reduce((a,b)=>a+b,0)/deltas.length,1);
+  const d2Theta=deltas.length>=2?fmt(deltas[deltas.length-1]-deltas[0],1):null;
+  return {path:results, dTheta, d2Theta, direction:dTheta>.5?'improving':dTheta<-.5?'declining':'stable'};
+}
+
+// ── TTF ───────────────────────────────────────────────────────
+function calcTTF(theta, dTheta, d2Theta) {
+  const mode = dTheta!==null && dTheta>0 ? 'inverted' : 'normal';
+  const slope = dTheta!==null ? (d2Theta!==null ? dTheta+0.5*d2Theta : dTheta) : null;
+  return {
+    mode,
+    thresholds: [{name:'Plastic',value:60},{name:'Late Plastic',value:40},{name:'Residual',value:20}].map(t => {
+      const gap = theta - t.value;
+      const periods = slope!==null ? fmt(gap/abs(slope||0.01),1) : null;
+      return {...t, gap, periods, direction: mode==='inverted'?'away':'toward'};
+    })
+  };
+}
+
+// ── VERDICT ───────────────────────────────────────────────────
+function buildVerdict(theta, v, traj) {
+  const {sigma,kappa,rho,kappa_a}=v; const {dTheta}=traj;
+  if(theta>=75&&rho>sigma+kappa&&(dTheta===null||dTheta>=0))
+    return {label:'Strong long-term hold', color:'#3b6d11', detail:'ρ dominant, low masking, structural capacity building or stable.'};
+  if(theta>=60&&kappa_a<10&&(dTheta===null||dTheta>-3))
+    return {label:'Solid — monitor trajectory', color:'#185fa5', detail:'Good fundamentals with manageable displacement. Watch dΘ/dt direction.'};
+  if(theta>=60&&kappa_a>=10)
+    return {label:'Healthy-looking / structurally weaker', color:'#854f0b', detail:'Income statement better than cash reality. κ_a masking identified.'};
+  if(theta>=40&&dTheta!==null&&dTheta<-3)
+    return {label:'Deteriorating — caution', color:'#854f0b', detail:'Declining at meaningful rate. Structural stress accumulating faster than healing.'};
+  if(theta>=40)
+    return {label:'Mixed — needs deeper review', color:'#854f0b', detail:'Some structural concerns but not terminal. Track trajectory over next 2 periods.'};
+  return {label:'Avoid — structural failure risk', color:'#a32d2d', detail:'Residual regime. κ exhaustion visible in the data. Terminal condition approaching.'};
+}
+
+// ── FULL SCAN ─────────────────────────────────────────────────
+function runFullScan(data) {
+  const blocks = [scoreBlock1,scoreBlock2,scoreBlock3,scoreBlock4,scoreBlock5,scoreBlock6].map(fn=>fn(data));
+  const vectors = mapToDST(blocks);
+  const theta   = clamp(Math.round(50+vectors.rho-vectors.sigma-vectors.kappa),0,100);
+  const apparent= clamp(Math.round(50+vectors.rho-vectors.sigma),0,100);
+  const obs_gap = apparent-theta;
+  const obs_sev = obs_gap>=30?'critical':obs_gap>=15?'high':obs_gap>=5?'medium':'low';
+  const regime  = classifyRegime(theta);
+  const traj    = calcTrajectory(data);
+  const ttf     = calcTTF(theta, traj.dTheta, traj.d2Theta);
+  const verdict = buildVerdict(theta, vectors, traj);
+  const allF    = blocks.flatMap(b=>b.findings).filter(f=>f.score!==0).sort((a,b)=>a.score-b.score);
+  return {theta, apparent, obs_gap, obs_sev, regime, vectors, blocks, allF, traj, ttf, verdict};
+}
+
+// ═══════════════════════════════════════════════════════════════
+// UI RENDERING
+// ═══════════════════════════════════════════════════════════════
+const TYPE_CFG = {
+  sigma:   {bg:'#fcebeb',tc:'#a32d2d',label:'σ stress'},
+  kappa_a: {bg:'#faeeda',tc:'#854f0b',label:'κ_a accumulated'},
+  kappa_c: {bg:'#e6f1fb',tc:'#185fa5',label:'κ_c conscripted'},
+  kappa_i: {bg:'#eeedfe',tc:'#534ab7',label:'κ_i intentional'},
+  rho:     {bg:'#eaf3de',tc:'#3b6d11',label:'ρ healing'},
+  neutral: {bg:'#f1efe8',tc:'#5f5e5a',label:'neutral'},
+};
+
+let DATA=null, RESULT=null, ACTIVE='overview';
+
+function badge(type) {
+  const c=TYPE_CFG[type]||TYPE_CFG.neutral;
+  return `<span class="badge" style="background:${c.bg};color:${c.tc}">${c.label}</span>`;
+}
+
+function renderResult() {
+  const R=RESULT, D=DATA, r=R.regime;
+
+  // Gauge SVG
+  const rad=54, circ=2*Math.PI*rad, filled=circ*(R.theta/100);
+  const gauge=`<svg width="130" height="130" viewBox="0 0 130 130">
+    <circle cx="65" cy="65" r="${rad}" fill="none" stroke="#e8e6de" stroke-width="10"/>
+    <circle cx="65" cy="65" r="${rad}" fill="none" stroke="${r.color}" stroke-width="10"
+      stroke-dasharray="${filled} ${circ}" stroke-linecap="round"
+      transform="rotate(-90 65 65)"/>
+    <text x="65" y="60" text-anchor="middle" font-size="30" font-weight="700" fill="${r.color}" font-family="monospace">${R.theta}</text>
+    <text x="65" y="76" text-anchor="middle" font-size="10" fill="#888780">/ 100</text>
+    <text x="65" y="91" text-anchor="middle" font-size="9" font-weight="600" fill="${r.color}">Θ score</text>
+  </svg>`;
+
+  // Trajectory
+  const trajHtml = R.traj.path.map((v,i)=>`
+    <div class="traj-period">
+      <div class="tp-label">${D.periods[i]}</div>
+      <div class="tp-val" style="color:${v===R.theta?r.color:'#5f5e5a'}">${v??'—'}</div>
+    </div>`).join('')+
+    (R.traj.dTheta!==null?`
+    <div class="traj-dot">·</div>
+    <div class="traj-stat">
+      <div class="ts-label">dΘ/dt</div>
+      <div class="ts-val" style="color:${R.traj.dTheta>=0?'#3b6d11':'#a32d2d'}">${R.traj.dTheta>=0?'+':''}${R.traj.dTheta}</div>
+    </div>
+    <div class="traj-stat">
+      <div class="ts-label">Direction</div>
+      <div class="ts-val" style="color:${R.traj.direction==='improving'?'#3b6d11':R.traj.direction==='declining'?'#a32d2d':'#854f0b'};font-size:11px">
+        ${R.traj.direction==='improving'?'↑ improving':R.traj.direction==='declining'?'↓ declining':'→ stable'}
+      </div>
+    </div>`:'');
+
+  // Gap color
+  const gapColor=R.obs_gap>=15?'#a32d2d':R.obs_gap>=5?'#854f0b':'#3b6d11';
+
+  // Kappa decomp chips
+  const kdChips=[
+    R.vectors.kappa_a>0?`<span class="kd-item" style="background:#faeeda;color:#854f0b">κ_a = ${R.vectors.kappa_a}</span>`:'',
+    R.vectors.kappa_c>0?`<span class="kd-item" style="background:#e6f1fb;color:#185fa5">κ_c = ${R.vectors.kappa_c}</span>`:'',
+    R.vectors.kappa_i>0?`<span class="kd-item" style="background:#eeedfe;color:#534ab7">κ_i = ${R.vectors.kappa_i}</span>`:'',
+    (R.vectors.kappa_a===0&&R.vectors.kappa_c===0&&R.vectors.kappa_i===0)?
+      `<span class="kd-item" style="background:#eaf3de;color:#3b6d11">No masking detected</span>`:'',
+  ].join('');
+
+  // DST delta display (demo.html style)
+  const deltaLine = R.traj.dTheta!==null ?
+    `<div class="delta-strip">Θ: ${R.traj.path.filter(v=>v!==null).join(' → ')} &nbsp;·&nbsp; <strong>dΘ/dt ${R.traj.dTheta>=0?'+':''}${R.traj.dTheta}</strong> &nbsp;·&nbsp; ${R.traj.direction==='improving'?'capacity building':'capacity ${R.traj.direction}'} &nbsp;·&nbsp; Regime: ${r.name}</div>` : '';
+
+  document.getElementById('resultBox').innerHTML = `
+    <div class="result-header">
+      <div>
+        <div class="result-ticker">${D.ticker}</div>
+        <div class="result-company">${D.company}</div>
+        <div class="result-meta">${D.sector} · ${D.periods[D.periods.length-1]} · Confidence: ${Math.round(D.data_confidence*100)}%</div>
+      </div>
+      <div class="verdict-pill" style="color:${R.verdict.color};border-color:${R.verdict.color}40;background:${R.verdict.color}12">${R.verdict.label}</div>
+    </div>
+
+    <div class="top-grid">
+      <div class="gauge-wrap">
+        ${gauge}
+        <div class="regime-pill" style="background:${r.bg};color:${r.color}">${r.name}</div>
+      </div>
+
+      <div class="center-col">
+        <div class="info-card">
+          <div class="info-card-label">A(t) vs Θ(t) — Observability Gap</div>
+          <div class="obs-gap-row">
+            <div><div class="obs-sub">Apparent (IS)</div><div class="obs-num" style="color:#185fa5">${R.apparent}</div></div>
+            <div class="obs-arrow">→</div>
+            <div><div class="obs-sub">Structural (CF+BS)</div><div class="obs-num" style="color:${r.color}">${R.theta}</div></div>
+            <div style="margin-left:auto;text-align:right">
+              <div class="obs-sub">Gap</div>
+              <div class="obs-gap-val" style="color:${gapColor}">${R.obs_gap>=0?'+':''}${R.obs_gap}</div>
+              <div class="obs-gap-sev" style="color:${gapColor}">${R.obs_sev}</div>
+            </div>
+          </div>
         </div>
-      </td>
-      <td><span class="regime-chip ${chipClass(d.regime)}">${d.regime}</span></td>
-      <td><span class="gap-badge ${gClass}">${d.obs_gap > 0 ? '+'+d.obs_gap+' ⚠' : '✓ minimal'}</span></td>
-      <td>
-        <div class="vectors">
-          <span class="vec vec-s">σ ${d.sigma_score}</span>
-          <span class="vec vec-r">ρ ${d.rho_score}</span>
-          <span class="vec vec-k">κ ${d.kappa_score}</span>
-        </div>
-      </td>
-      <td><span class="traj ${tClass}">${d.theta_trajectory||'first scan'}</span></td>
-      <td style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted)">${fmtCap(d.market_cap)}</td>
-      <td style="color:var(--muted);font-size:11px">▾</td>
-    `;
-    tbody.appendChild(tr);
-
-    // Detail row
-    const detail = document.createElement('tr');
-    detail.innerHTML = `<td colspan="10" style="padding:0">
-      <div class="detail" id="detail-${i}">
-        <div style="margin-bottom:8px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted)">
-          σ_eff: ${d.sigma_eff_note} &nbsp;·&nbsp; Apparent: ${d.apparent}/100 &nbsp;·&nbsp; Gap: ${d.obs_gap} pts
-        </div>
-        <div class="findings-grid">
-          ${d.findings.map(f=>{
-            const cat = {sigma:'σ',kappa:'κ',rho:'ρ'}[f.category]||'?';
-            const cc  = {sigma:'var(--red)',kappa:'var(--amber)',rho:'var(--green)'}[f.category];
-            const sign = f.impact>0?'+':'';
-            return `<div class="finding">
-              <div class="finding-head">
-                <span class="finding-type" style="color:${cc}">${cat} ${f.metric.replace(/_/g,' ')}</span>
-                <span class="finding-impact" style="color:${f.impact>0?'var(--green)':'var(--red)'}">${sign}${f.impact}</span>
-              </div>
-              <div class="finding-msg">${f.message}</div>
-            </div>`;
-          }).join('')}
+        <div class="info-card">
+          <div class="info-card-label">Θ Trajectory</div>
+          <div class="traj-row">${trajHtml}</div>
+          ${deltaLine}
         </div>
       </div>
-    </td>`;
-    tbody.appendChild(detail);
-  });
+
+      <div class="vectors-card">
+        <div class="vec-label-row">DST Vectors</div>
+        ${[['σ stress',R.vectors.sigma,'#a32d2d'],['κ masking',R.vectors.kappa,'#854f0b'],['ρ healing',R.vectors.rho,'#3b6d11']].map(([lbl,v,c])=>`
+        <div class="vec-row">
+          <div class="vec-lbl" style="color:${c}">${lbl}</div>
+          <div class="vec-bar-wrap"><div class="vec-bar" style="width:${Math.min(100,(v/80)*100)}%;background:${c}"></div></div>
+          <div class="vec-num" style="color:${c}">${v}</div>
+        </div>`).join('')}
+        <div class="kappa-decomp">${kdChips}</div>
+      </div>
+    </div>
+
+    <div class="tabs" id="tabBar"></div>
+    <div id="tabContent"></div>
+
+    <div style="margin-top:28px;padding-top:16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <div style="font-size:10px;color:var(--hint)">DST Framework · Idan Rephiah · SSRN 6434119 · ρ heals · κ hides · σ kills</div>
+      <div style="font-size:10px;color:var(--hint)">Data confidence: ${Math.round(D.data_confidence*100)}% · Not financial advice · Structural diagnosis only</div>
+    </div>`;
+
+  renderTabs();
 }
 
-function toggleDetail(i){
-  const el = document.getElementById(`detail-${i}`);
-  if(el) el.classList.toggle('open');
+function renderTabs() {
+  const tabs=[['overview','Overview'],['blocks','Block Scores'],['findings','All Findings'],['ttf','Time-to-Failure']];
+  document.getElementById('tabBar').innerHTML = tabs.map(([id,lbl])=>
+    `<button class="tab-btn${ACTIVE===id?' active':''}" onclick="setTab('${id}')">${lbl}</button>`).join('');
+  renderTabContent();
 }
 
-// ── FILTERS ───────────────────────────────────────────────────────────────
-function filterRegime(regime, btn){
-  activeRegime = regime;
-  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  applyFilters();
-}
-function filterSearch(q){
-  searchQuery = q.toLowerCase();
-  applyFilters();
-}
-function applyFilters(){
-  filtered = DATA.filter(d=>{
-    if(activeRegime!=='all'&&d.regime!==activeRegime) return false;
-    if(searchQuery&&!d.ticker.toLowerCase().includes(searchQuery)&&!d.name.toLowerCase().includes(searchQuery)) return false;
-    return true;
-  });
-  sortData();
-  renderTable();
+function setTab(id) { ACTIVE=id; renderTabs(); }
+
+function renderTabContent() {
+  const R=RESULT, el=document.getElementById('tabContent');
+
+  if(ACTIVE==='overview') {
+    const r=R.regime;
+    el.innerHTML=`
+    <div class="verdict-box" style="background:${R.verdict.color}10;border-color:${R.verdict.color}">
+      <div class="vb-title" style="color:${R.verdict.color}">${R.verdict.label}</div>
+      <div class="vb-body" style="color:${R.verdict.color}">${R.verdict.detail}</div>
+      <div class="vb-rule" style="color:${R.verdict.color}"><strong>Regime intervention:</strong> ${r.intervention}</div>
+    </div>
+    <div class="findings-label">Key Findings</div>
+    ${R.allF.slice(0,6).map(f=>`
+    <div class="finding-row">
+      ${badge(f.type)}
+      <div class="finding-content">
+        <div class="finding-title">${f.text}</div>
+        <div class="finding-detail">${f.detail}</div>
+      </div>
+      <div class="finding-score" style="color:${f.score>=0?'#3b6d11':'#a32d2d'}">${f.score>=0?'+':''}${f.score}</div>
+    </div>`).join('')}
+    <div class="regime-desc-box" style="background:${r.bg};border-color:${r.color}30;color:${r.color}">
+      <strong>${r.name} regime:</strong> ${r.desc}
+    </div>`;
+  }
+
+  else if(ACTIVE==='blocks') {
+    el.innerHTML=R.blocks.map((b,i)=>`
+    <div class="block-card">
+      <div class="block-header" onclick="toggleBlock(${i})">
+        <div class="block-header-left">
+          <div class="block-num">Block ${i+1}</div>
+          <div class="block-name">${b.name}</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <div class="block-score" style="color:${b.subtotal>=0?'#3b6d11':'#a32d2d'}">${b.subtotal>=0?'+':''}${b.subtotal}</div>
+          <div class="block-arrow" id="arr${i}">▼</div>
+        </div>
+      </div>
+      <div class="block-body" id="blk${i}">
+        ${b.findings.map(f=>`
+        <div class="block-row">
+          ${badge(f.type)}
+          <div class="br-val">${f.value}</div>
+          <div class="br-score" style="color:${f.score>=0?'#3b6d11':'#a32d2d'}">${f.score>=0?'+':''}${f.score}</div>
+          <div class="br-content"><div class="br-title">${f.text}</div><div class="br-detail">${f.detail}</div></div>
+        </div>`).join('')}
+      </div>
+    </div>`).join('')+`
+    <div class="theta-eq">
+      <div class="theta-eq-formula">Θ = clamp(50 + ${R.vectors.rho} &minus; ${R.vectors.sigma} &minus; ${R.vectors.kappa},  0,  100)</div>
+      <div class="theta-eq-val" style="color:${R.regime.color}">${R.theta}</div>
+    </div>`;
+  }
+
+  else if(ACTIVE==='findings') {
+    el.innerHTML=['sigma','kappa_a','kappa_c','kappa_i','rho'].map(type=>{
+      const typed=R.allF.filter(f=>f.type===type); if(!typed.length) return '';
+      const c=TYPE_CFG[type];
+      return `<div class="finding-group">
+        <div class="finding-group-header" style="color:${c.tc};border-color:${c.bg}">${c.label} — ${typed.length} finding${typed.length>1?'s':''}</div>
+        ${typed.map(f=>`
+        <div class="finding-item" style="background:${c.bg}">
+          <div class="fi-rule" style="color:${c.tc}">${f.rule}</div>
+          <div class="fi-body"><div class="fi-title">${f.text}</div>${f.detail?`<div class="fi-detail">${f.detail}</div>`:''}</div>
+          <div class="fi-score" style="color:${c.tc}">${f.score>=0?'+':''}${f.score}</div>
+        </div>`).join('')}
+      </div>`;
+    }).join('');
+  }
+
+  else if(ACTIVE==='ttf') {
+    const mode=R.ttf.mode;
+    el.innerHTML=`
+    <div class="ttf-mode-card">
+      <strong style="color:var(--black)">τ(T) = (Θ &minus; T) / |dΘ/dt|</strong> &nbsp;·&nbsp;
+      Mode: <strong style="color:${mode==='inverted'?'#3b6d11':'#a32d2d'}">${mode==='inverted'?'INVERTED — moving away from failure':'NORMAL — moving toward failure'}</strong>
+      ${R.traj.dTheta!==null?` &nbsp;·&nbsp; dΘ/dt = ${R.traj.dTheta>=0?'+':''}${R.traj.dTheta} per period`:''}
+    </div>
+    ${R.ttf.thresholds.map(t=>{
+      const rc=classifyRegime(t.value); const bp=Math.min(100,(t.gap/100)*100);
+      return `<div class="ttf-threshold">
+        <div class="ttf-top">
+          <div class="ttf-regime-name" style="color:${rc.color}">${t.name} (Θ = ${t.value})</div>
+          <div class="ttf-right">
+            <div class="ttf-gap-val" style="color:${mode==='inverted'?'#3b6d11':'#a32d2d'}">${t.gap>=0?'+':''}${t.gap} pts ${t.direction}</div>
+            ${t.periods!==null?`<div class="ttf-periods">~${t.periods} periods ${mode==='inverted'?'until safe':'until breach'}</div>`:''}
+          </div>
+        </div>
+        <div class="ttf-bar-wrap"><div class="ttf-bar" style="width:${Math.max(0,bp)}%;background:${mode==='inverted'?'#3b6d11':rc.color}"></div></div>
+      </div>`;
+    }).join('')}
+    <div class="ttf-note">
+      <strong style="color:var(--black)">Note:</strong> Estimates assume constant dΘ/dt.
+      d²Θ/dt² = ${R.traj.d2Theta??'n/a'} · Treat as structural indication, not precise forecast.
+      ${R.traj.dTheta===null?'Trajectory unknown — need 2+ historical periods for dΘ/dt calculation.':''}
+    </div>`;
+  }
 }
 
-// ── SORT ──────────────────────────────────────────────────────────────────
-function sortBy(key){
-  if(sortKey===key) sortDir = sortDir==='asc'?'desc':'asc';
-  else{ sortKey=key; sortDir='asc'; }
-  document.querySelectorAll('th.sortable').forEach(th=>{th.classList.remove('sort-asc','sort-desc');});
-  const activeH = document.querySelector(`th[onclick="sortBy('${key}')"]`);
-  if(activeH) activeH.classList.add(sortDir==='asc'?'sort-asc':'sort-desc');
-  sortData();
-  renderTable();
-}
-function sortData(){
-  filtered.sort((a,b)=>{
-    let va=a[sortKey], vb=b[sortKey];
-    if(typeof va==='string') return sortDir==='asc'?va.localeCompare(vb):vb.localeCompare(va);
-    return sortDir==='asc'?(va-vb):(vb-va);
-  });
+function toggleBlock(i) {
+  const el=document.getElementById('blk'+i), ar=document.getElementById('arr'+i);
+  if(el.style.display==='none'||el.style.display==='') { el.style.display='block'; ar.textContent='▲'; }
+  else { el.style.display='none'; ar.textContent='▼'; }
 }
 
-// ── INIT ──────────────────────────────────────────────────────────────────
-renderSummary();
-sortData();
-renderTable();
+// ═══════════════════════════════════════════════════════════════
+// API CALL & SCAN RUNNER
+// ═══════════════════════════════════════════════════════════════
+async function runScan() {
+  const ticker=document.getElementById('tickerInput').value.trim().toUpperCase();
+  if(!ticker) return;
+
+  document.getElementById('scanBtn').disabled=true;
+  document.getElementById('scanBtn').textContent='Scanning…';
+  document.getElementById('errorBox').style.display='none';
+  document.getElementById('loadingBox').style.display='block';
+  document.getElementById('resultBox').style.display='none';
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: EXTRACTION_PROMPT,
+        messages: [{role:'user', content:`Extract financial data for ticker: ${ticker}`}],
+      }),
+    });
+    const json = await res.json();
+    const raw  = json.content?.map(c=>c.text||'').join('')||'';
+    const clean= raw.replace(/```json|```/g,'').trim();
+    const data = JSON.parse(clean);
+
+    if(data.sector_type==='financial') {
+      showError('Banks and insurers require specialized analysis frameworks not yet supported. Try a non-financial company (e.g. AAPL, MSFT, TSLA, AMZN).');
+      return;
+    }
+
+    DATA   = data;
+    RESULT = runFullScan(data);
+    ACTIVE = 'overview';
+
+    document.getElementById('loadingBox').style.display='none';
+    document.getElementById('resultBox').style.display='block';
+    renderResult();
+
+    // Scroll to result
+    document.getElementById('resultBox').scrollIntoView({behavior:'smooth', block:'start'});
+
+  } catch(e) {
+    showError('Could not extract financial data. Check the ticker and try again. Major public companies work best: AAPL, MSFT, TSLA, AMZN, NVDA, GOOGL, META.');
+  }
+
+  document.getElementById('scanBtn').disabled=false;
+  document.getElementById('scanBtn').textContent='Scan →';
+}
+
+function showError(msg) {
+  document.getElementById('loadingBox').style.display='none';
+  document.getElementById('errorBox').textContent=msg;
+  document.getElementById('errorBox').style.display='block';
+}
 </script>
 </body>
 </html>
